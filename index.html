@@ -3,666 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高等教育改革文書 理解支援ビューア</title>
+    <title>プロジェクトメニュー</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* Interフォントを適用 */
         body {
-            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .content-area::-webkit-scrollbar {
-            width: 8px;
-        }
-        .content-area::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 4px;
-        }
-        .content-area::-webkit-scrollbar-track {
-            background-color: #f1f5f9;
-        }
-        .sidebar-item, .history-item-text { 
-            transition: background-color 0.2s ease-in-out;
-        }
-        .sidebar-item:hover, .history-item:hover .history-item-text { 
-            background-color: #e2e8f0; 
-        }
-        .sidebar-item.active {
-            background-color: #3b82f6; 
-            color: white;
-        }
-        .sidebar-item.active:hover {
-            background-color: #2563eb; 
-        }
-        .prose { 
-            color: inherit;
-        }
-        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-            color: inherit;
-            font-weight: 600;
-            margin-top: 1.25em;
-            margin-bottom: 0.5em;
-        }
-        .prose h1 { font-size: 1.875rem; }
-        .prose h2 { font-size: 1.5rem; }
-        .prose h3 { font-size: 1.25rem; }
-        .prose p {
-            margin-bottom: 1em;
-            line-height: 1.75;
-        }
-        .prose ul, .prose ol {
-            margin-left: 1.5em;
-            margin-bottom: 1em;
-        }
-        .prose ul {
-            list-style-type: disc;
-        }
-        .prose ol {
-            list-style-type: decimal;
-        }
-        .prose li > p {
-            margin-bottom: 0.5em;
-        }
-        .prose strong {
-            font-weight: 700; 
-        }
-        .prose em {
-            font-style: italic;
-        }
-        .prose blockquote { 
-            border-left: 4px solid #e2e8f0; 
-            padding-left: 1em;
-            margin-left: 0;
-            font-style: italic;
-            color: #64748b; 
-        }
-        .prose .ai-citation { 
-            border-left: 4px solid #60a5fa; 
-            background-color: #eff6ff; 
-            padding: 0.75rem 1rem;
-            margin-top: 1em;
-            margin-bottom: 1em;
-            font-style: normal;
-            color: #374151; 
-        }
-        .prose .ai-citation p {
-            margin-bottom: 0.5em;
-        }
-        .prose .ai-citation p:last-child {
-            margin-bottom: 0;
-        }
-        .prose .ai-explanation-note { /* Style for "可能性があります" notes */
-            margin-top: 1em;
-            padding: 0.75rem 1rem;
-            background-color: #fffbeb; /* Tailwind yellow-50 */
-            border-left: 4px solid #facc15; /* Tailwind yellow-400 */
-            color: #78350f; /* Tailwind yellow-800 */
-            font-size: 0.9em;
-        }
-        .prose a {
-            color: #2563eb; 
-            text-decoration: underline;
-        }
-        .prose a:hover {
-            color: #1d4ed8;
-        }
-        #search-popup {
-            position: absolute;
-            background-color: white;
-            border: 1px solid #cbd5e1;
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            z-index: 50;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        #search-popup button {
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease-in-out;
-            color: white;
-            border: none;
-            text-align: left;
-        }
-        #search-popup .kotobank-btn {
-            background-color: #ea580c;
-        }
-        #search-popup .kotobank-btn:hover {
-            background-color: #c2410c;
-        }
-        #search-popup .niad-glossary-btn { 
-            background-color: #0d9488;
-        }
-        #search-popup .niad-glossary-btn:hover {
-            background-color: #0f766e;
-        }
-         #search-popup .close-btn {
-            background-color: #64748b;
-        }
-        #search-popup .close-btn:hover {
-            background-color: #475569;
-        }
-        .history-item { 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0.25rem; 
-            margin-bottom: 0.25rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-        }
-        .history-item-text {
-            flex-grow: 1; 
-            padding: 0 0.5rem; 
-            font-size: 0.875rem;
-            color: #475569; 
-            border-radius: 0.375rem; 
-        }
-        .delete-history-btn {
-            background: none;
-            border: none;
-            color: #9ca3af; 
-            cursor: pointer;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
-        }
-        .delete-history-btn:hover {
-            color: #ef4444; 
-        }
-        .keyword-input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-        #clear-keyword-input {
-            position: absolute;
-            right: 0.75rem; 
-            cursor: pointer;
-            color: #9ca3af; 
-            display: none; 
-        }
-        #clear-keyword-input:hover {
-            color: #6b7280; 
-        }
-
+        /* カスタムスタイルがあればここに追加 */
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
-    <div class="flex flex-col md:flex-row h-screen">
-        <aside class="w-full md:w-1/4 bg-white p-6 shadow-lg overflow-y-auto content-area">
-            <h1 class="text-2xl font-bold mb-6 text-blue-600">目次</h1>
-            <div class="mb-4">
-                <div class="keyword-input-wrapper">
-                    <input type="text" id="keyword-input" placeholder="キーワードで解説を検索..." class="w-full p-3 pr-10 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
-                    <span id="clear-keyword-input" title="クリア">
-                        <i class="fas fa-times-circle"></i>
-                    </span>
-                </div>
-                <button id="keyword-search-button" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-                    AIでキーワード解説
-                </button>
-            </div>
-            <nav id="toc-navigation">
-                </nav>
-            <div id="search-history-container" class="mt-8 pt-4 border-t border-slate-200">
-                <h2 class="text-lg font-semibold mb-2 text-slate-700">検索履歴</h2>
-                <div id="search-history-area">
-                    <p class="text-sm text-slate-500">AIキーワード検索の履歴はまだありません。</p>
-                    </div>
-            </div>
-        </aside>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col items-center pt-10">
 
-        <main class="flex-1 p-6 md:p-10 overflow-y-auto content-area" id="main-content-container">
-            <div id="main-content-area" class="bg-white p-8 rounded-xl shadow-xl relative"> 
-                <h2 id="selected-section-title" class="text-3xl font-bold mb-6 text-slate-700">内容解説</h2>
-                <div id="selected-section-subheadings" class="mb-6 text-slate-600">
-                    </div>
-                
-                <div id="ai-explanation-area">
-                    <p class="text-slate-500 text-lg">左の目次から項目を選択するか、キーワードを入力して解説を検索してください。</p>
-                    </div>
-                <div id="loading-indicator" class="hidden loader"></div>
-                <div id="error-message" class="hidden text-red-500 p-4 bg-red-100 rounded-lg"></div>
-            </div>
-        </main>
-    </div>
+    <header class="mb-10 text-center">
+        <h1 class="text-4xl font-bold text-indigo-600">プロジェクト一覧</h1>
+        <p class="text-lg text-gray-600 mt-2">利用したいコンテンツを選択してください。</p>
+    </header>
+
+    <main class="w-full max-w-2xl px-4">
+        <div id="menu-container" class="bg-white shadow-lg rounded-lg p-6">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">利用可能なSPA (Single Page Applications)</h2>
+            <ul id="spa-list" class="space-y-3">
+                <!--
+                    新しいSPAへのリンクを追加する場合：
+                    以下の<li>要素をコピーして、
+                    ・data-filename属性にSPAディレクトリ内のHTMLファイル名
+                    ・<a>タグのhref属性に "spa/" + HTMLファイル名
+                    ・<a>タグのテキストに表示したい名前
+                    を指定してください。
+                -->
+                <li data-filename="高等教育改革文書 理解支援ビューア.html">
+                    <a href="spa/高等教育改革文書 理解支援ビューア.html"
+                       class="block p-4 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200 ease-in-out shadow hover:shadow-md">
+                        高等教育改革文書 理解支援ビューア
+                    </a>
+                </li>
+                </ul>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-8 text-center text-gray-500">
+        <p>&copy; <span id="current-year"></span> あなたの氏名または組織名. All rights reserved.</p>
+    </footer>
 
     <script>
-        const documentTitle = "我が国の「知の総和」向上の未来像 高等教育システムの再構築";
-        const はじめにText = `危機は今、我々の足下にある。その危機とは、急速な少子化をはじめとした国内外の諸情勢の急激な変化にほかならない。少子化は、我が国の産業・経済、文化・学芸などあらゆる分野の繁栄と、都市と地方の均衡ある発展を大きく減速させる。これらは目をそらすことのできない事実であり、我々はまず、この現実を直視すべきである。\n令和5(2023)年の日本人の年間出生数は、72万7,277人となり過去最少を更新し、令和6(2024)年も70万人を下回ることが予想される。出生低位推計によれば、我が国の総人口は、2052年に1億人を割り、2070年には8,024万人になるものと推計されている。これは、今高等教育を修了しようとする者が社会の中枢で活躍するような近い将来である。\nまた、世界に目を転じれば、分断化する国際情勢や気候変動などの環境問題、AIの進展による効率化とリスク等、社会を取り巻く状況は大きく変化している。そのような世界的なリスクにさらされる中において、平和を尊び、粘り強い対話を通じた合意の形成を志向する社会の実現に向けて、我が国の高等教育機関が貢献できることは決して少なくない。\n我々は急速に進展する少子化への対応や世界的なリスクという避けて通ることのできない課題に真正面から向き合い議論を重ねてきた。教育の現状を変革できなければ、国力は著しく低下することとなる。したがって、少子化へは決して規模や活動の縮小といった後ろ向きな対応ではなく、この危機を、大学をはじめとする高等教育機関の活動を強じんなものとし、国内外の社会課題の解決に貢献することにより、社会全体の活性化を促す好機と捉え、これまでの約1年5か月間、正に新たな我が国社会の将来を方向づける最大の国家プロジェクトの一つという強い認識の下で議論を重ねてきた。\n大学をはじめとする高等教育機関の役割は、学修者一人一人の可能性を最大限伸ばすことによって社会の発展の原動力となる優れた人材の育成、人類の知的資産の継承と未来を拓く新しい知の創造、知的資源を活用した社会の発展や文化の創造、国際協力への積極的な貢献等幅広いものであり、個人のみならず社会全体にも価値あるものである。このような役割を担う我が国の高等教育に関する政策は、「計画と規制」から「将来像の提示と政策誘導」への時代と転換してきた。その中で、大学への入学定員は増加し続けるとともに、進学率も上昇してきた。しかし、これから先の急速な少子化は、中間的な規模の大学が1年間で90校程度、減少していくような規模で進んでおり、定員未充足や募集停止、経営破綻に追い込まれる高等教育機関が更に生じることは避けられない。高等教育の規模が縮小するということは、特に地方においては、質の高い高等教育へのアクセスが確保されない事態も想定される。これらへの対応は待ったなしとも言うべき状況にある。\nそして、高等教育機関の偏在と学びたい学問が学べないという影響を直接受けるのは、未来を創り出す若者であり、高等教育機関の卒業生の規模縮小と人材不足の影響を受けるのは、我が国の社会全体である。若者の夢を止めることはもちろんのこと、社会全体の希望を失わせることは決してあってはならない。全ての人が、我が国で暮らしていてよかったと感じることができる社会を創っていくことが求められる。\n大学をはじめとした高等教育機関の在り方の見直しは、その場しのぎで対応できるものではない。正に今、我々の世代で解決する姿勢が求められる。そのためには、これまでの発想を大きく転換することも求められる。国や大学等の高等教育機関関係者はもちろん、地方公共団体や産業界、初等中等教育関係者、高等教育機関への進学者やその保護者等、ひいては社会全体が、高等教育に対するマインドを変えていかなければならない。\n本答申が、今後の高等教育、ひいては我が国の未来を創造していくに当たっての羅針盤となることを願ってやまない。`;
+        // フッターに現在の年を自動で表示
+        document.getElementById('current-year').textContent = new Date().getFullYear();
 
-        const tocData = [
-            { title: "はじめに", level: 0, subheadings: [], text_content: はじめにText },
-            { 
-                title: "1. 今後の高等教育の目指すべき姿", 
-                level: 1, 
-                subheadings: [
-                    "(1) 直面する課題とこれまでの高等教育政策",
-                    "(2) 目指す未来像",
-                    "(3) 育成する人材像",
-                    "(4) 高等教育が目指す姿",
-                    "(5) 高等教育政策の目的 (①「質」について, ② 「規模」について, ③ 「アクセス」について, ④3つの目的の関係)",
-                    "(6) 重視すべき観点 (①教育研究の観点, ②学生への支援の観点, ③高等教育機関の運営の観点, ④社会の中における高等教育機関の観点)"
-                ] 
-            },
-            { 
-                title: "2. 今後の高等教育政策の方向性と具体的方策", 
-                level: 1, 
-                subheadings: [
-                    "(1) 教育研究の「質」の更なる高度化 (①学修者本位の教育の更なる推進, ②外国人留学生や社会人をはじめとした多様な学生の受入れ促進, ③大学院教育の改革, ④研究力の強化, ⑤情報公表の推進)",
-                    "(2) 高等教育全体の「規模」の適正化 (①高等教育機関の機能強化, ②高等教育機関全体の規模の適正化の推進)",
-                    "(3) 高等教育への「アクセス」 確保 (①地理的観点からのアクセス確保, ②社会経済的観点からのアクセス確保)"
-                ] 
-            },
-            { 
-                title: "3. 機関別・設置者別の役割や連携の在り方", 
-                level: 1, 
-                subheadings: [
-                    "(1) 機関別の役割 (①大学(学士課程), ②専門職大学・専門職短期大学, ③大学院・専門職大学院, ④短期大学, ⑤高等専門学校, ⑥専門学校)",
-                    "(2) 設置者別の役割 (①国立大学, ②公立大学, ③私立大学)",
-                    "(3) 機能や特性等に着目した政策の重視"
-                ] 
-            },
-            { 
-                title: "4. 高等教育改革を支える支援方策の在り方", 
-                level: 1, 
-                subheadings: [
-                    "(1) 基本的な考え方 (①高等教育の価値, ②高等教育への信頼, ③必要コストの算出, ④高等教育投資の在り方)",
-                    "(2) 今後取るべき方策 (①短期的取組, ②中長期的取組)"
-                ] 
-            },
-            { title: "おわりに", level: 0, subheadings: [] },
-            { title: "(補論1) 近年の社会を取り巻く変化", level: 0, subheadings: [] },
-            { title: "(補論2) 近年の高等教育を取り巻く変化", level: 0, subheadings: [] },
-            { title: "(補論3) これまでの高等教育政策", level: 0, subheadings: [] }
+        // 将来的にJavaScriptで動的にリストを生成する場合の例
+        // (現在はHTMLに直接記述していますが、ファイルが増えた場合に役立ちます)
+        /*
+        const spaFiles = [
+            { name: "高等教育改革文書 理解支援ビューア", filename: "高等教育改革文書 理解支援ビューア.html" },
+            // { name: "新しいSPAの名前", filename: "新しいSPAのファイル名.html" },
         ];
 
-        const tocNavigation = document.getElementById('toc-navigation');
-        const selectedSectionTitleElem = document.getElementById('selected-section-title');
-        const selectedSectionSubheadingsElem = document.getElementById('selected-section-subheadings');
-        const aiExplanationArea = document.getElementById('ai-explanation-area');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const errorMessage = document.getElementById('error-message');
-        const keywordInput = document.getElementById('keyword-input');
-        const keywordSearchButton = document.getElementById('keyword-search-button');
-        const mainContentContainer = document.getElementById('main-content-container');
-        const mainContentArea = document.getElementById('main-content-area');
-        const searchHistoryArea = document.getElementById('search-history-area');
-        const clearKeywordInputButton = document.getElementById('clear-keyword-input');
+        const spaListElement = document.getElementById('spa-list');
 
+        function renderSpaList() {
+            spaListElement.innerHTML = ''; // 既存のリストをクリア
 
-        let currentActiveItem = null;
-        let searchPopup = null; 
-        let searchHistory = []; 
-        const MAX_HISTORY_ITEMS = 5; 
+            spaFiles.forEach(spa => {
+                const listItem = document.createElement('li');
+                listItem.setAttribute('data-filename', spa.filename);
 
+                const link = document.createElement('a');
+                link.href = `spa/${spa.filename}`;
+                link.textContent = spa.name;
+                link.className = "block p-4 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200 ease-in-out shadow hover:shadow-md";
 
-        tocData.forEach((item, index) => {
-            const div = document.createElement('div');
-            div.textContent = item.title;
-            div.className = `p-3 mb-2 rounded-lg cursor-pointer sidebar-item ${item.level === 0 ? 'font-semibold text-slate-700' : 'ml-4 text-slate-600'}`;
-            div.dataset.index = index;
-            div.onclick = () => {
-                if (currentActiveItem) {
-                    currentActiveItem.classList.remove('active');
-                }
-                div.classList.add('active');
-                currentActiveItem = div;
-                displaySectionContent(item);
-                hideSearchPopup(); 
-            };
-            tocNavigation.appendChild(div);
-        });
-
-        async function displaySectionContent(section) {
-            selectedSectionTitleElem.textContent = section.title;
-            
-            if (section.subheadings && section.subheadings.length > 0) {
-                let subheadingsHtml = '<h3 class="text-xl font-semibold mb-2 text-slate-600">この章の主な項目:</h3><ul class="list-disc list-inside space-y-1">';
-                section.subheadings.forEach(sub => {
-                    subheadingsHtml += `<li class="text-slate-500">${sub}</li>`;
-                });
-                subheadingsHtml += '</ul>';
-                selectedSectionSubheadingsElem.innerHTML = subheadingsHtml;
-            } else {
-                selectedSectionSubheadingsElem.innerHTML = '';
-            }
-
-            aiExplanationArea.innerHTML = ''; 
-            loadingIndicator.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-
-            try {
-                let prompt = `日本の高等教育改革に関する文書「${documentTitle}」について質問です。\n`;
-                prompt += `「${section.title}」という章（またはセクション）の主要な内容、目的、および重要なポイントを、専門知識がない人にも分かりやすく500字程度で解説・要約してください。\n`;
-
-                if (section.text_content) {
-                    prompt += `以下はこのセクションの実際のテキストです。これを必ず参照し、解説の根拠となる部分があれば『引用文』の形で示してください。\n---テキスト開始---\n${section.text_content.substring(0, 3000)}...\n---テキスト終了---\n`; // 渡すテキスト量を増やす
-                } else {
-                    prompt += `このセクションは「${documentTitle}」の一部です。提供されたタイトルや小見出し（もしあれば）に基づいて、元のPDF文書の内容を推測し要約してください。解説の根拠となる部分を報告書から引用する形で記述してください（例：『引用文』）。\n`;
-                    prompt += `もし、提供された情報（タイトル、小見出し）だけでは具体的な引用が困難な場合は、その旨を明確に述べた上で、これらの情報から推測される内容を要約し、最後に『この解説は提供されたタイトルと小見出しに基づいており、文書全体の文脈と照らした詳細な検証が必要です。答申本文からの直接的な引用が含まれていない可能性があります。』という注釈を必ず加えてください。\n`;
-                }
-                prompt += `箇条書きや太字などのマークダウン形式を適宜使用して、分かりやすく記述してください。`;
-
-                const explanation = await fetchExplanationFromAI(prompt);
-                aiExplanationArea.innerHTML = `<h3 class="text-2xl font-semibold mb-4 text-blue-700">AIによる「${section.title}」の解説</h3><div class="prose max-w-none">${formatTextToHtml(explanation)}</div>`;
-            } catch (error) {
-                console.error('Error fetching AI explanation:', error);
-                errorMessage.textContent = 'AIによる解説の取得中にエラーが発生しました。しばらくしてからもう一度お試しください。';
-                errorMessage.classList.remove('hidden');
-                aiExplanationArea.innerHTML = '<p class="text-red-500">解説の表示に失敗しました。</p>';
-            } finally {
-                loadingIndicator.classList.add('hidden');
-            }
-        }
-        
-        keywordSearchButton.addEventListener('click', handleKeywordSearch);
-        
-        keywordInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault(); 
-                handleKeywordSearch();
-            }
-        });
-         keywordInput.addEventListener('input', function() {
-            clearKeywordInputButton.style.display = this.value ? 'block' : 'none';
-        });
-
-        clearKeywordInputButton.addEventListener('click', function() {
-            keywordInput.value = '';
-            clearKeywordInputButton.style.display = 'none';
-            keywordInput.focus();
-        });
-
-
-        async function handleKeywordSearch() {
-            const keyword = keywordInput.value.trim();
-            if (!keyword) {
-                const customAlert = document.createElement('div');
-                customAlert.textContent = 'キーワードを入力してください。';
-                customAlert.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 bg-yellow-200 text-yellow-800 p-4 rounded-lg shadow-md transition-opacity duration-300 z-50';
-                document.body.appendChild(customAlert);
-                setTimeout(() => {
-                    customAlert.style.opacity = '0';
-                    setTimeout(() => customAlert.remove(), 300);
-                }, 2000);
-                return;
-            }
-            addKeywordToHistory(keyword); 
-            hideSearchPopup(); 
-
-            selectedSectionTitleElem.textContent = `「${keyword}」に関するAI解説`;
-            selectedSectionSubheadingsElem.innerHTML = '';
-            aiExplanationArea.innerHTML = '';
-            loadingIndicator.classList.remove('hidden');
-            errorMessage.classList.add('hidden');
-            
-            if (currentActiveItem) {
-                currentActiveItem.classList.remove('active');
-                currentActiveItem = null;
-            }
-
-            try {
-                let prompt = `日本の高等教育改革に関する文書「${documentTitle}」の文脈で、「${keyword}」というキーワードについて解説してください。\n`;
-                prompt += `このキーワードが文書内でどのような意味を持ち、どのような課題や政策に関連しているか、具体的な例を交えながら専門知識がない人にも分かりやすく500字程度で説明してください。\n`;
-                prompt += `参考として、文書の「はじめに」セクションのテキストは以下の通りです。\n---「はじめに」テキスト開始---\n${はじめにText}\n---「はじめに」テキスト終了---\n`;
-                prompt += `解説の根拠となる部分を報告書から引用する形で記述してください（例：『引用文』）。\n`;
-                prompt += `もし、提供された「はじめに」のテキストや一般的な知識から判断して、答申内に「${keyword}」に直接関連する具体的な記載や引用可能な箇所が見当たらない場合は、その旨を明確に述べた上で、キーワードの一般的な重要性や文書全体の趣旨から推測される関連性を解説し、最後に『この解説には、答申本文からの直接的な引用が含まれていない可能性があります。』という注釈を必ず加えてください。\n`;
-                prompt += `箇条書きや太字などのマークダウン形式を適宜使用して、分かりやすく記述してください。`;
-                
-                const explanation = await fetchExplanationFromAI(prompt);
-                aiExplanationArea.innerHTML = `<h3 class="text-2xl font-semibold mb-4 text-blue-700">AIによる「${keyword}」の解説</h3><div class="prose max-w-none">${formatTextToHtml(explanation)}</div>`;
-                
-            } catch (error) {
-                console.error('Error fetching AI explanation for keyword:', error);
-                errorMessage.textContent = 'AIによるキーワード解説の取得中にエラーが発生しました。';
-                errorMessage.classList.remove('hidden');
-                aiExplanationArea.innerHTML = '<p class="text-red-500">キーワード解説の表示に失敗しました。</p>';
-            } finally {
-                loadingIndicator.classList.add('hidden');
-            }
-        }
-
-        async function fetchExplanationFromAI(prompt) {
-            const apiKey = ""; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.4, 
-                    topK: 15,
-                    topP: 0.8,
-                    maxOutputTokens: 2048, 
-                }
-            };
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                listItem.appendChild(link);
+                spaListElement.appendChild(listItem);
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('API Error:', errorData);
-                //  APIエラー時も特定のメッセージを返すか、エラー内容による分岐を検討
-                //  return `解説の取得に失敗しました。(API Error: ${errorData.error?.message || 'Unknown error'})`;
-                throw new Error(`API request failed with status ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
-            }
-
-            const result = await response.json();
-
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                return result.candidates[0].content.parts[0].text;
-            } else {
-                console.error('Unexpected API response structure:', result);
-                 // 予期しない応答構造の場合、AIが意図した「記載なし」の応答を生成できなかったとみなし、
-                 // ユーザー指定の「可能性があります」というニュアンスのメッセージを返す。
-                if (result.promptFeedback && result.promptFeedback.blockReason) {
-                     return `AIの応答がブロックされました。このキーワードやセクションに関する解説は生成できませんでした。(理由: ${result.promptFeedback.blockReason}) 答申には関連する記載が含まれていない可能性があります。`;
-                }
-                // その他の予期せぬエラー
-                 return `AIからの応答形式が正しくありません。このキーワードやセクションに関する解説は生成できませんでした。答申には関連する記載が含まれていない可能性があります。`;
-            }
-        }
-        
-        function formatTextToHtml(text) {
-            if (typeof marked === 'undefined') {
-                console.warn('marked.js is not loaded. Falling back to basic formatting.');
-                let html = text.replace(/\n/g, '<br>');
-                html = html.replace(/『(.*?)』/g, '<blockquote class="my-2 p-2 border-l-4 border-gray-300 bg-gray-50 text-gray-700 italic">$1</blockquote>');
-                // Add note styling for basic formatting too
-                if (html.includes("直接的な引用が含まれていない可能性があります") || html.includes("詳細な検証が必要です")) {
-                    html += `<div class="ai-explanation-note">${html.match(/この解説には、[^<]+が含まれていない可能性があります。|この解説は提供された[^<]+詳細な検証が必要です。/g)}</div>`;
-                }
-                return html;
-            }
-            let html = marked.parse(text, { gfm: true, breaks: true });
-            html = html.replace(/『([^』]+)』/g, (match, p1) => {
-                return `<blockquote class="ai-citation">${p1.replace(/<br\s*\/?>/gi, '</p><p>')}</blockquote>`;
-            });
-            html = html.replace(/<blockquote class="ai-citation">([\s\S]*?)<\/blockquote>/g, (match, content) => {
-                let innerContent = content.trim();
-                if (!innerContent.startsWith('<p>') && !innerContent.endsWith('</p>')) {
-                    innerContent = `<p>${innerContent}</p>`;
-                }
-                return `<blockquote class="ai-citation">${innerContent}</blockquote>`;
-            });
-
-            // Check for the specific note phrases and wrap them in a styled div
-            const noteRegex1 = /(この解説には、答申本文からの直接的な引用が含まれていない可能性があります。)/g;
-            const noteRegex2 = /(この解説は提供されたタイトルと小見出しに基づいており、文書全体の文脈と照らした詳細な検証が必要です。答申本文からの直接的な引用が含まれていない可能性があります。)/g;
-            
-            html = html.replace(noteRegex1, `<div class="ai-explanation-note">$1</div>`);
-            html = html.replace(noteRegex2, `<div class="ai-explanation-note">$1</div>`);
-
-            return html;
         }
 
-        function showSearchPopup(selectedText, x, y) {
-            hideSearchPopup(); 
-
-            searchPopup = document.createElement('div');
-            searchPopup.id = 'search-popup';
-            
-            const title = document.createElement('p');
-            title.textContent = `「${selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText}」を検索:`;
-            title.className = 'text-sm font-semibold text-slate-700 mb-1';
-            searchPopup.appendChild(title);
-
-            const kotobankButton = document.createElement('button');
-            kotobankButton.textContent = 'コトバンク大学事典';
-            kotobankButton.className = 'kotobank-btn';
-            kotobankButton.onclick = () => {
-                const kotobankUrl = `https://kotobank.jp/word/${encodeURIComponent(selectedText)}`;
-                window.open(kotobankUrl, '_blank');
-                hideSearchPopup();
-            };
-            searchPopup.appendChild(kotobankButton);
-
-            const niadGlossaryButton = document.createElement('button'); 
-            niadGlossaryButton.textContent = '質保証関係用語集 (NIAD)'; 
-            niadGlossaryButton.className = 'niad-glossary-btn'; 
-            niadGlossaryButton.onclick = () => {
-                const niadGlossarySearchUrl = `https://niadqe.jp/glossary/?keyword=${encodeURIComponent(selectedText)}#result`;
-                window.open(niadGlossarySearchUrl, '_blank');
-                hideSearchPopup();
-            };
-            searchPopup.appendChild(niadGlossaryButton);
-
-            const closeButton = document.createElement('button');
-            closeButton.textContent = '閉じる';
-            closeButton.className = 'close-btn mt-1';
-            closeButton.onclick = () => {
-                hideSearchPopup();
-            };
-            searchPopup.appendChild(closeButton);
-
-            const rect = mainContentArea.getBoundingClientRect();
-            let popupX = x - rect.left;
-            let popupY = y - rect.top + mainContentContainer.scrollTop; 
-            const offset = 10;
-            searchPopup.style.left = `${popupX}px`;
-            searchPopup.style.top = `${popupY + offset}px`; 
-            mainContentArea.appendChild(searchPopup); 
-
-            const popupRect = searchPopup.getBoundingClientRect();
-            if (popupRect.right > rect.right - offset) {
-                searchPopup.style.left = `${popupX - popupRect.width}px`;
-            }
-            if (popupRect.bottom > rect.bottom - offset + mainContentContainer.scrollTop) {
-                 searchPopup.style.top = `${popupY - popupRect.height - offset}px`;
-            }
-             if (popupRect.left < rect.left) { 
-                searchPopup.style.left = `${offset}px`;
-            }
-        }
-
-        function hideSearchPopup() {
-            if (searchPopup) {
-                searchPopup.remove();
-                searchPopup = null;
-            }
-        }
-
-        mainContentContainer.addEventListener('mouseup', function(event) {
-            if (searchPopup && searchPopup.contains(event.target)) {
-                return;
-            }
-            const selectedText = window.getSelection().toString().trim();
-            if (selectedText.length > 1 && selectedText.length < 100) { 
-                showSearchPopup(selectedText, event.clientX, event.clientY);
-            } else {
-                hideSearchPopup(); 
-            }
-        });
-
-        document.addEventListener('click', function(event) {
-            if (searchPopup && !searchPopup.contains(event.target)) {
-                const isTextSelectedOnContent = mainContentContainer.contains(event.target) && window.getSelection().toString().trim().length > 0;
-                if (!isTextSelectedOnContent) {
-                     hideSearchPopup();
-                }
-            }
-        });
-
-        function addKeywordToHistory(keyword) {
-            searchHistory = searchHistory.filter(item => item !== keyword);
-            searchHistory.unshift(keyword);
-            if (searchHistory.length > MAX_HISTORY_ITEMS) {
-                searchHistory.pop();
-            }
-            updateSearchHistoryUI();
-        }
-
-        function deleteKeywordFromHistory(keywordToDelete) {
-            searchHistory = searchHistory.filter(item => item !== keywordToDelete);
-            updateSearchHistoryUI();
-        }
-
-
-        function updateSearchHistoryUI() {
-            searchHistoryArea.innerHTML = ''; 
-            if (searchHistory.length === 0) {
-                searchHistoryArea.innerHTML = '<p class="text-sm text-slate-500">AIキーワード検索の履歴はまだありません。</p>';
-                return;
-            }
-
-            const ul = document.createElement('ul');
-            searchHistory.forEach(keyword => {
-                const li = document.createElement('li');
-                li.className = 'history-item'; 
-
-                const textSpan = document.createElement('span');
-                textSpan.textContent = keyword;
-                textSpan.className = 'history-item-text'; 
-                textSpan.onclick = () => {
-                    keywordInput.value = keyword; 
-                    handleKeywordSearch(); 
-                    addKeywordToHistory(keyword); 
-                };
-                
-                const deleteButton = document.createElement('button');
-                deleteButton.innerHTML = '<i class="fas fa-times"></i>'; 
-                deleteButton.className = 'delete-history-btn';
-                deleteButton.title = '履歴から削除';
-                deleteButton.onclick = (event) => {
-                    event.stopPropagation(); 
-                    deleteKeywordFromHistory(keyword);
-                };
-                
-                li.appendChild(textSpan);
-                li.appendChild(deleteButton);
-                ul.appendChild(li);
-            });
-            searchHistoryArea.appendChild(ul);
-        }
-        updateSearchHistoryUI();
-
+        // 初期表示
+        // renderSpaList(); // JavaScriptでリストを生成する場合はこの行のコメントを解除
+        */
     </script>
+
 </body>
 </html>
