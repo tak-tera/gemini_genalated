@@ -1,613 +1,1262 @@
+----
+
 <!DOCTYPE html>
+
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日本の大学制度の歴史的変遷と学部自治</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Application Structure Plan:
-        Fixed sidebar navigation. Main content area with sections/sub-sections defaulting to open.
-        Section I: Infographic timeline for key events. "✨ このセクションを要約" (Gemini) button.
-        Key terms: Tooltips. "📖 辞典で引く" (Kotobank) or "✨ AIで解説" (Gemini) buttons.
-        Section III: Responsive HTML table for international comparison.
-        This structure aims for immediate content access, enhanced visual engagement (timeline), and flexible in-depth explanations for terminology. All Japanese text in "です・ます" style.
-    -->
-    <!-- Visualization & Content Choices:
-        1. Historical Overview (Report I.A-D):
-           - Goal: Inform about key periods/changes.
-           - Viz/Presentation: Text sections (default open, "です・ます" style), Infographic Timeline (HTML/CSS/JS with icons). Gemini "✨ このセクションを要約" button.
-           - Interaction: Clickable timeline events. Collapsible text. Gemini summary. Kotobank/Gemini term explanations.
-           - Justification: Infographic for visual appeal & quick overview of events. Gemini for summaries. Dual-mode term explanation for depth.
-           - Library/Method: HTML/CSS/Tailwind, Vanilla JS, Gemini API.
-        2. Faculty Autonomy, International Comparison, Analysis, Conclusion (Report II-V):
-           - Goal: Explain concepts, compare, summarize.
-           - Viz/Presentation: Text sections (default open, "です・ます" style). Tooltips, Kotobank/Gemini buttons for terms. Gemini section summary buttons. Responsive table (Sec III).
-           - Interaction: Hover for tooltips. Click for Kotobank or Gemini term explanation. Click for Gemini section summary.
-           - Justification: Provides multiple layers of information access (tooltip, dictionary, AI). Default open for ease of reading.
-           - Library/Method: HTML/CSS/Tailwind, Vanilla JS, Gemini API.
-    -->
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .content-section {
-            display: none;
-        }
-        .content-section.active {
-            display: block;
-        }
-        .nav-link.active {
-            background-color: #0369a1; /* sky-700 */
-            color: white;
-        }
-        .tooltip {
-            position: relative;
-            display: inline-block;
-            border-bottom: 1px dotted #3b82f6; /* blue-500 */
-            cursor: help;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 250px;
-            background-color: #1f2937; /* gray-800 */
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 8px;
-            position: absolute;
-            z-index: 10;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -125px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.875rem;
-            line-height: 1.25rem;
-        }
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        /* Infographic Timeline Styles */
-        .infographic-timeline-container {
-            padding: 20px 0;
-            margin-bottom: 1.5rem;
-            border-top: 1px solid #e5e7eb;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .infographic-timeline {
-            display: flex;
-            overflow-x: auto;
-            padding-bottom: 20px; /* For scrollbar */
-            position: relative; /* For connecting line */
-        }
-        .infographic-timeline::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%; 
-            height: 4px;
-            background-color: #cbd5e1; /* cool-gray-300 */
-            transform: translateY(-50%);
-            z-index: 0;
-        }
-        .timeline-card {
-            background-color: white;
-            border: 1px solid #d1d5db; /* gray-300 */
-            border-radius: 12px; /* rounded-xl */
-            padding: 1rem; /* p-4 */
-            margin: 0 1rem; /* mx-4 */
-            min-width: 200px; 
-            max-width: 250px;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* shadow-md */
-            position: relative; 
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between; 
-        }
-        .timeline-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
-        }
-        .timeline-card.active-event {
-            border-color: #0ea5e9; /* sky-500 */
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.4); /* Ring effect */
-        }
-        .timeline-card-icon {
-            font-size: 2.5rem; /* text-4xl */
-            margin-bottom: 0.75rem; /* mb-3 */
-            color: #0ea5e9; /* sky-500 */
-        }
-        .timeline-card-year {
-            font-size: 1.125rem; /* text-lg */
-            font-weight: 700; /* bold */
-            color: #1f2937; /* gray-800 */
-            margin-bottom: 0.25rem; /* mb-1 */
-        }
-        .timeline-card-title {
-            font-size: 0.875rem; /* text-sm */
-            font-weight: 600; /* semibold */
-            color: #374151; /* gray-700 */
-            margin-bottom: 0.5rem; /* mb-2 */
-            flex-grow: 1; 
-        }
-        .timeline-card-desc-trigger {
-            font-size: 0.75rem; /* text-xs */
-            color: #6b7280; /* gray-500 */
-            margin-top: auto; 
-        }
-        .timeline-description-area { 
-            margin-top: 1.5rem; /* mt-6 */
-            padding: 1.5rem; /* p-6 */
-            background-color: #f3f4f6; /* gray-100 */
-            border-radius: 8px; /* rounded-lg */
-            border: 1px solid #e5e7eb; /* gray-200 */
-            box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05);
-        }
 
-        .table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        th, td {
-            padding: 0.75rem;
-            border: 1px solid #e5e7eb; /* gray-200 */
-            text-align: left;
-            font-size: 0.875rem;
-        }
-        th {
-            background-color: #f3f4f6; /* gray-100 */
-            font-weight: 600;
-        }
-        h1, h2, h3, h4 { margin-bottom: 0.75rem; font-weight: 600; }
-        h1 { font-size: 1.875rem; line-height: 2.25rem; color: #111827; /* gray-900 */ }
-        h2 { font-size: 1.5rem; line-height: 2rem; color: #1f2937; /* gray-800 */ margin-top: 1.5rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
-        h3 { font-size: 1.25rem; line-height: 1.75rem; color: #374151; /* gray-700 */ margin-top: 1rem; }
-        p, li { margin-bottom: 0.75rem; line-height: 1.625; color: #374151; /* gray-700 */ }
-        ul { list-style-position: inside; }
-        .collapsible-header {
-            cursor: pointer;
-            padding: 0.5rem;
-            background-color: #f9fafb; /* gray-50 */
-            border: 1px solid #e5e7eb; /* gray-200 */
-            border-radius: 0.375rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-         .collapsible-header:hover {
-            background-color: #f3f4f6; /* gray-100 */
-        }
-        .collapsible-content {
-            display: block; 
-            padding-left: 1rem;
-            border-left: 2px solid #d1d5db; /* gray-300 */
-            margin-left: 0.5rem;
-        }
-        .gemini-summary-btn { 
-            background-color: #38bdf8; /* sky-400 */
-            color: white;
-            font-weight: 600;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            transition: background-color 0.2s;
-        }
-        .gemini-summary-btn:hover {
-            background-color: #0ea5e9; /* sky-500 */
-        }
-        .kotobank-btn {
-            background-color: #a5f3fc; /* cyan-200 */
-            color: #164e63; /* cyan-800 */
-            font-weight: 500;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            margin-left: 0.5rem;
-            transition: background-color 0.2s;
-        }
-        .kotobank-btn:hover {
-            background-color: #67e8f9; /* cyan-300 */
-        }
-        .gemini-explain-btn { 
-            background-color: #f0abfc; /* fuchsia-300 */
-            color: #701a75; /* fuchsia-800 */
-            font-weight: 500;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.75rem;
-            margin-left: 0.5rem;
-            transition: background-color 0.2s;
-        }
-        .gemini-explain-btn:hover {
-            background-color: #e879f9; /* fuchsia-400 */
-        }
-    </style>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>日本の大学制度の歴史的変遷と学部自治</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Application Structure Plan:
+
+        Fixed sidebar navigation. Main content area with sections/sub-sections defaulting to open.
+
+        Section I: Infographic timeline for key events. "✨ このセクションを要約" (Gemini) button.
+
+        Key terms: Tooltips. "📖 辞典で引く" (Kotobank) or "✨ AIで解説" (Gemini) buttons.
+
+        Section III: Responsive HTML table for international comparison.
+
+        This structure aims for immediate content access, enhanced visual engagement (timeline), and flexible in-depth explanations for terminology. All Japanese text in "です・ます" style.
+
+    -->
+
+    <!-- Visualization & Content Choices:
+
+        1. Historical Overview (Report I.A-D):
+
+           - Goal: Inform about key periods/changes.
+
+           - Viz/Presentation: Text sections (default open, "です・ます" style), Infographic Timeline (HTML/CSS/JS with icons). Gemini "✨ このセクションを要約" button.
+
+           - Interaction: Clickable timeline events. Collapsible text. Gemini summary. Kotobank/Gemini term explanations.
+
+           - Justification: Infographic for visual appeal & quick overview of events. Gemini for summaries. Dual-mode term explanation for depth.
+
+           - Library/Method: HTML/CSS/Tailwind, Vanilla JS, Gemini API.
+
+        2. Faculty Autonomy, International Comparison, Analysis, Conclusion (Report II-V):
+
+           - Goal: Explain concepts, compare, summarize.
+
+           - Viz/Presentation: Text sections (default open, "です・ます" style). Tooltips, Kotobank/Gemini buttons for terms. Gemini section summary buttons. Responsive table (Sec III).
+
+           - Interaction: Hover for tooltips. Click for Kotobank or Gemini term explanation. Click for Gemini section summary.
+
+           - Justification: Provides multiple layers of information access (tooltip, dictionary, AI). Default open for ease of reading.
+
+           - Library/Method: HTML/CSS/Tailwind, Vanilla JS, Gemini API.
+
+    -->
+
+    <style>
+
+        body {
+
+            font-family: 'Inter', sans-serif;
+
+        }
+
+        .content-section {
+
+            display: none;
+
+        }
+
+        .content-section.active {
+
+            display: block;
+
+        }
+
+        .nav-link.active {
+
+            background-color: #0369a1; /* sky-700 */
+
+            color: white;
+
+        }
+
+        .tooltip {
+
+            position: relative;
+
+            display: inline-block;
+
+            border-bottom: 1px dotted #3b82f6; /* blue-500 */
+
+            cursor: help;
+
+        }
+
+        .tooltip .tooltiptext {
+
+            visibility: hidden;
+
+            width: 250px;
+
+            background-color: #1f2937; /* gray-800 */
+
+            color: #fff;
+
+            text-align: left;
+
+            border-radius: 6px;
+
+            padding: 8px;
+
+            position: absolute;
+
+            z-index: 10;
+
+            bottom: 125%;
+
+            left: 50%;
+
+            margin-left: -125px;
+
+            opacity: 0;
+
+            transition: opacity 0.3s;
+
+            font-size: 0.875rem;
+
+            line-height: 1.25rem;
+
+        }
+
+        .tooltip:hover .tooltiptext {
+
+            visibility: visible;
+
+            opacity: 1;
+
+        }
+
+       
+
+        /* Infographic Timeline Styles */
+
+        .infographic-timeline-container {
+
+            padding: 20px 0;
+
+            margin-bottom: 1.5rem;
+
+            border-top: 1px solid #e5e7eb;
+
+            border-bottom: 1px solid #e5e7eb;
+
+        }
+
+        .infographic-timeline {
+
+            display: flex;
+
+            overflow-x: auto;
+
+            padding-bottom: 20px; /* For scrollbar */
+
+            position: relative; /* For connecting line */
+
+        }
+
+        .infographic-timeline::before {
+
+            content: '';
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 0;
+
+            width: 100%;
+
+            height: 4px;
+
+            background-color: #cbd5e1; /* cool-gray-300 */
+
+            transform: translateY(-50%);
+
+            z-index: 0;
+
+        }
+
+        .timeline-card {
+
+            background-color: white;
+
+            border: 1px solid #d1d5db; /* gray-300 */
+
+            border-radius: 12px; /* rounded-xl */
+
+            padding: 1rem; /* p-4 */
+
+            margin: 0 1rem; /* mx-4 */
+
+            min-width: 200px;
+
+            max-width: 250px;
+
+            text-align: center;
+
+            cursor: pointer;
+
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* shadow-md */
+
+            position: relative;
+
+            z-index: 1;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+        }
+
+        .timeline-card:hover {
+
+            transform: translateY(-5px);
+
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
+
+        }
+
+        .timeline-card.active-event {
+
+            border-color: #0ea5e9; /* sky-500 */
+
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.4); /* Ring effect */
+
+        }
+
+        .timeline-card-icon {
+
+            font-size: 2.5rem; /* text-4xl */
+
+            margin-bottom: 0.75rem; /* mb-3 */
+
+            color: #0ea5e9; /* sky-500 */
+
+        }
+
+        .timeline-card-year {
+
+            font-size: 1.125rem; /* text-lg */
+
+            font-weight: 700; /* bold */
+
+            color: #1f2937; /* gray-800 */
+
+            margin-bottom: 0.25rem; /* mb-1 */
+
+        }
+
+        .timeline-card-title {
+
+            font-size: 0.875rem; /* text-sm */
+
+            font-weight: 600; /* semibold */
+
+            color: #374151; /* gray-700 */
+
+            margin-bottom: 0.5rem; /* mb-2 */
+
+            flex-grow: 1;
+
+        }
+
+        .timeline-card-desc-trigger {
+
+            font-size: 0.75rem; /* text-xs */
+
+            color: #6b7280; /* gray-500 */
+
+            margin-top: auto;
+
+        }
+
+        .timeline-description-area {
+
+            margin-top: 1.5rem; /* mt-6 */
+
+            padding: 1.5rem; /* p-6 */
+
+            background-color: #f3f4f6; /* gray-100 */
+
+            border-radius: 8px; /* rounded-lg */
+
+            border: 1px solid #e5e7eb; /* gray-200 */
+
+            box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05);
+
+        }
+
+
+
+        .table-container {
+
+            overflow-x: auto;
+
+            -webkit-overflow-scrolling: touch;
+
+        }
+
+        th, td {
+
+            padding: 0.75rem;
+
+            border: 1px solid #e5e7eb; /* gray-200 */
+
+            text-align: left;
+
+            font-size: 0.875rem;
+
+        }
+
+        th {
+
+            background-color: #f3f4f6; /* gray-100 */
+
+            font-weight: 600;
+
+        }
+
+        h1, h2, h3, h4 { margin-bottom: 0.75rem; font-weight: 600; }
+
+        h1 { font-size: 1.875rem; line-height: 2.25rem; color: #111827; /* gray-900 */ }
+
+        h2 { font-size: 1.5rem; line-height: 2rem; color: #1f2937; /* gray-800 */ margin-top: 1.5rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+
+        h3 { font-size: 1.25rem; line-height: 1.75rem; color: #374151; /* gray-700 */ margin-top: 1rem; }
+
+        p, li { margin-bottom: 0.75rem; line-height: 1.625; color: #374151; /* gray-700 */ }
+
+        ul { list-style-position: inside; }
+
+        .collapsible-header {
+
+            cursor: pointer;
+
+            padding: 0.5rem;
+
+            background-color: #f9fafb; /* gray-50 */
+
+            border: 1px solid #e5e7eb; /* gray-200 */
+
+            border-radius: 0.375rem;
+
+            margin-bottom: 0.5rem;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+        }
+
+         .collapsible-header:hover {
+
+            background-color: #f3f4f6; /* gray-100 */
+
+        }
+
+        .collapsible-content {
+
+            display: block;
+
+            padding-left: 1rem;
+
+            border-left: 2px solid #d1d5db; /* gray-300 */
+
+            margin-left: 0.5rem;
+
+        }
+
+        .gemini-summary-btn {
+
+            background-color: #38bdf8; /* sky-400 */
+
+            color: white;
+
+            font-weight: 600;
+
+            padding: 0.5rem 0.75rem;
+
+            border-radius: 0.375rem;
+
+            font-size: 0.875rem;
+
+            transition: background-color 0.2s;
+
+        }
+
+        .gemini-summary-btn:hover {
+
+            background-color: #0ea5e9; /* sky-500 */
+
+        }
+
+        .kotobank-btn {
+
+            background-color: #a5f3fc; /* cyan-200 */
+
+            color: #164e63; /* cyan-800 */
+
+            font-weight: 500;
+
+            padding: 0.25rem 0.5rem;
+
+            border-radius: 0.25rem;
+
+            font-size: 0.75rem;
+
+            margin-left: 0.5rem;
+
+            transition: background-color 0.2s;
+
+        }
+
+        .kotobank-btn:hover {
+
+            background-color: #67e8f9; /* cyan-300 */
+
+        }
+
+        .gemini-explain-btn {
+
+            background-color: #f0abfc; /* fuchsia-300 */
+
+            color: #701a75; /* fuchsia-800 */
+
+            font-weight: 500;
+
+            padding: 0.25rem 0.5rem;
+
+            border-radius: 0.25rem;
+
+            font-size: 0.75rem;
+
+            margin-left: 0.5rem;
+
+            transition: background-color 0.2s;
+
+        }
+
+        .gemini-explain-btn:hover {
+
+            background-color: #e879f9; /* fuchsia-400 */
+
+        }
+
+    </style>
+
 </head>
+
 <body class="bg-stone-100 text-neutral-800">
-    <div class="flex flex-col md:flex-row min-h-screen">
-        <aside class="w-full md:w-64 bg-stone-200 p-4 md:sticky md:top-0 md:h-screen overflow-y-auto">
-            <h1 class="text-xl font-bold mb-6 text-sky-800">大学制度の歴史</h1>
-            <nav>
-                <ul>
-                    <li><a href="#section1" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">I. 近代日本の大学制度</a></li>
-                    <li><a href="#section2" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">II. 学部自治の軌跡</a></li>
-                    <li><a href="#section3" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">III. 国際比較</a></li>
-                    <li><a href="#section4" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">IV. 総合的分析</a></li>
-                    <li><a href="#section5" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">V. 結論</a></li>
-                </ul>
-            </nav>
-        </aside>
 
-        <main class="flex-1 p-6 md:p-10 bg-white overflow-y-auto">
-            <header class="mb-8">
-                <h1 class="text-3xl md:text-4xl font-bold text-center text-sky-700">日本の大学制度の歴史的変遷と学部自治：国際比較の視座から</h1>
-            </header>
+    <div class="flex flex-col md:flex-row min-h-screen">
 
-            <div id="section1" class="content-section">
-                <div class="flex justify-between items-center mb-4">
-                    <h2>I. 近代日本大学制度の展開：歴史的概観</h2>
-                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
-                </div>
-                <p class="text-lg text-gray-600 mb-6">本章では、日本の近代大学制度が成立し、変容を遂げてきた歴史的過程を概観します。主要な法制度や構造的変化、そしてその背景にある理念や社会的要求に着目し、現代に至るまでの軌跡を辿ります。</p>
-                
-                <div id="infographic-timeline-container" class="infographic-timeline-container">
-                    <h3 class="mb-4 text-xl font-semibold text-gray-700">主要な出来事のインフォグラフィック・タイムライン</h3>
-                    <div class="infographic-timeline">
-                        <div class="timeline-card" data-event="event1">
-                            <div class="timeline-card-icon">📜</div>
-                            <div class="timeline-card-year">1886年</div>
-                            <div class="timeline-card-title">帝国大学令 公布</div>
-                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
-                        </div>
-                        <div class="timeline-card" data-event="event2">
-                            <div class="timeline-card-icon">🏛️</div>
-                            <div class="timeline-card-year">1918年</div>
-                            <div class="timeline-card-title">大学令 公布</div>
-                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
-                        </div>
-                        <div class="timeline-card" data-event="event3">
-                            <div class="timeline-card-icon">🎓</div>
-                            <div class="timeline-card-year">1949年</div>
-                            <div class="timeline-card-title">教育改革 (新制大学)</div>
-                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
-                        </div>
-                        <div class="timeline-card" data-event="event4">
-                            <div class="timeline-card-icon">🔄</div>
-                            <div class="timeline-card-year">1991年</div>
-                            <div class="timeline-card-title">大学設置基準 大綱化</div>
-                             <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
-                        </div>
-                        <div class="timeline-card" data-event="event5">
-                             <div class="timeline-card-icon">🏢</div>
-                            <div class="timeline-card-year">2004年</div>
-                            <div class="timeline-card-title">国立大学法人化</div>
-                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
-                        </div>
-                    </div>
-                    <div id="timeline-description-area" class="timeline-description-area" style="display:none;"></div>
-                </div>
+        <aside class="w-full md:w-64 bg-stone-200 p-4 md:sticky md:top-0 md:h-screen overflow-y-auto">
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>A. 明治期における礎石：帝国大学と講座制</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>明治政府にとって、大学は近代国家建設に不可欠な官僚および専門職業人の養成機関として位置づけられました。特に法学、医学、工学といった実学が重視され、この実学志向は初期の日本の高等教育の性格を強く規定しました。1886年の<span class="tooltip">帝国大学令<span class="tooltiptext">日本の大学制度の基礎を築いた法令です。国家の要請に応える学術技芸の教授と研究を目的としました。</span></span><button class="kotobank-btn" data-term="帝国大学令">📖 辞典で引く</button>公布と、それに伴う東京大学の「<span class="tooltip">帝国大学<span class="tooltiptext">帝国大学令に基づき設置された大学です。当初は東京大学のみでした。</span></span><button class="kotobank-btn" data-term="帝国大学">📖 辞典で引く</button>」への改称は、日本の大学史における画期的な出来事でした。帝国大学令は、帝国大学の目的を「国家ノ須要ニ応スル学術技芸ヲ教授シ及其蘊奥ヲ攷究スル」ことと定め、国家の要請に応えるという明確な方向性を示しました。この国家主導の性格は、中世ヨーロッパの大学が持つような自律性とは異なり、日本の大学が「近代化の装置」として機能したことを物語っています。</p>
-                        <p>帝国大学制度の確立と並行して導入されたのが<span class="tooltip">講座制<span class="tooltiptext">教授ごとに独立した研究・教育単位を設ける制度です。専門分野の深化を促しましたが、後の学部自治の基盤ともなる教授個々の研究室の独立性を育みました。</span></span><button class="kotobank-btn" data-term="講座制">📖 辞典で引く</button>です。これは、教授ごとに独立した研究・教育単位を設けるものであり、専門分野の深化を促す一方で、後の学部自治の基盤ともなる教授個々の研究室の独立性を育むことになりました。しかし、明治初期の大学制度は、国家の強力な中央集権体制構築という背景の下にあり、大学の自律性は限定的でした。大学はまず国家の発展を支える知的基盤としての役割を期待されたのです。この初期の設計思想は、大学が国家目標と不可分に結びつくという、その後の日本の大学制度の展開に大きな影響を与える「<span class="tooltip">経路依存性<span class="tooltiptext">過去の選択や経緯が、その後の選択肢や発展方向を制約する現象のことです。</span></span><button class="gemini-explain-btn" data-term="経路依存性">✨ AIで解説</button>」を生んだと言えます。つまり、大学の「自治」という概念も、国家の枠組みの中で許容される、あるいは国家目標達成のために機能するものとして理解される傾向が生まれたのです。また、実学偏重は、西洋列強に追いつくための現実的な要請でしたが、幅広い教養や批判的精神の涵養といった大学のもう一つの側面が、初期段階では相対的に重視されなかった可能性も示唆しています。</p>
-                    </div>
-                </div>
+            <h1 class="text-xl font-bold mb-6 text-sky-800">大学制度の歴史</h1>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>B. 戦前期の展開：拡大、国家の影響、そして私学の勃興</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>明治後半から昭和初期にかけて、大学教育は量的にも質的にも拡大しました。1897年の京都帝国大学設立を皮切りに、全国に帝国大学が設置され、これらは当時の最高学府として、官僚・専門職養成と学術研究推進の二大使命を担いました。</p>
-                        <p>この時代における特筆すべき変化は、1918年の<span class="tooltip">大学令<span class="tooltiptext">帝国大学以外の私立学校なども「大学」として認可される道を開いた法令です。</span></span><button class="kotobank-btn" data-term="大学令">📖 辞典で引く</button>の公布です。これにより、それまで帝国大学のみが法的に「大学」とされてきた状況が変わり、一定の基準を満たした<span class="tooltip">私立学校<span class="tooltiptext">私人が設立・運営する学校です。大学令により大学としての地位を得る道が開かれました。</span></span><button class="kotobank-btn" data-term="私立大学">📖 辞典で引く</button>も「大学」として正式に認可される道が開かれました。福澤諭吉の慶應義塾や新島襄の同志社など、私塾の伝統を引き継ぎ、創立者の個性が色濃い学風を持つ学校や、法治国家建設に必要な法律家人材を養成する学校などが、大学へと昇格しました。これにより、高等教育の裾野は広がったものの、戦前の大学制度は依然としてエリート教育が中心であり、国家の強い統制下に置かれていた点は変わりませんでした。女子の大学進学も津田塾大学など一部の機関を除き限定的でした。</p>
-                        <p>大学令による私学の正式な認知は、高等教育における多様性の萌芽と言えますが、帝国大学を頂点とする階層構造は維持されました。これは、国家が依然として高等教育の質と方向性に対して強い影響力を保持しようとしたことの現れでしょう。私学の多様な出自は、官立の帝国大学とは異なる教育理念や学風を生み出す素地となったものの、それらもまた、国家が設定した大きな枠組みの中で運営されることを余儀なくされました。</p>
-                    </div>
-                </div>
-                
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>C. 第二次世界大戦後の変革：米国主導の改革と新制大学の誕生</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>第二次世界大戦敗戦後、日本の大学制度はアメリカの強い影響下で抜本的な<span class="tooltip">教育改革<span class="tooltiptext">戦後、GHQ指導のもとで行われた教育制度全般の改革です。大学制度も大きく変更されました。</span></span><button class="kotobank-btn" data-term="教育改革">📖 辞典で引く</button>を経験しました。特に1949年の教育改革は、戦前の複線的な高等教育機関（大学、<span class="tooltip">旧制高等学校<span class="tooltiptext">戦前の高等教育機関の一つです。大学予科の性格を持ちました。</span></span><button class="kotobank-btn" data-term="旧制高等学校">📖 辞典で引く</button>、<span class="tooltip">専門学校<span class="tooltiptext">戦前の高等教育機関の一つです。特定の専門分野の教育を行いました。</span></span><button class="kotobank-btn" data-term="専門学校 (旧制)">📖 辞典で引く</button>、<span class="tooltip">師範学校<span class="tooltiptext">戦前の教員養成機関です。</span></span><button class="kotobank-btn" data-term="師範学校">📖 辞典で引く</button>など）を「4年制大学」として一本化し、多くの人々が高等教育へアクセスできる道を開きました。この改革は、少数の特権階級のための高等教育という戦前のあり方を批判し、学校体系の単純化を目指すものでした。</p>
-                        <p>この改革により、私立大学が急増し、全国的に高等教育の機会が拡大しました。また、各都道府県に少なくとも一つの国立総合大学を設置するという方針（「一県一大学構想」）のもと、多くの<span class="tooltip">新制大学<span class="tooltiptext">戦後の教育改革により発足した4年制大学のことです。</span></span><button class="kotobank-btn" data-term="新制大学">📖 辞典で引く</button>が、既存の高等教育機関を統合・再編する形で誕生しました。例えば、京都大学は第三高等学校などを統合し、地方では師範学校や専門学校が母体となって新制大学が設立された例も多いです。さらに、戦前の専門教育中心のカリキュラムから転換し、アメリカの「<span class="tooltip">リベラルアーツ<span class="tooltiptext">一般教養のことです。幅広い分野の知識や思考力を養うことを目的とする教育です。</span></span><button class="kotobank-btn" data-term="リベラルアーツ">📖 辞典で引く</button>」の考え方を取り入れた<span class="tooltip">一般教育<span class="tooltiptext">専門教育に対し、幅広い分野の基礎的知識や教養を身につけさせる教育です。</span></span><button class="kotobank-btn" data-term="一般教育">📖 辞典で引く</button>（<span class="tooltip">教養科目<span class="tooltiptext">一般教育で履修する科目群のことです。</span></span><button class="kotobank-btn" data-term="教養科目">📖 辞典で引く</button>）が導入され、1・2年次に幅広い科目を学ぶカリキュラムが整備されました。</p>
-                        <p>戦後の大学改革は、理念としては民主化と機会均等を目指すものでしたが、その実施過程においては、連合国軍総司令部（GHQ/SCAP）の民間情報教育局（CIE）による強力なトップダウンの指示が見られました。これは、改革の内容がアメリカ的民主主義に基づいていたとしても、その導入プロセス自体は中央集権的な性格を帯びていたことを示しています。また、多様な背景を持つ教育機関を画一的な「新制大学」の枠組みに統合したことは、量的拡大には貢献したものの、各大学の個性や教育の質の維持という点では新たな課題を生んだ可能性があります。旧制の帝国大学や有力私学と、師範学校や専門学校を母体とする新制大学との間には、資源や伝統の面で格差が存在し、その後の大学間の序列意識にも影響を与えたと考えられます。</p>
-                    </div>
-                </div>
+            <nav>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>D. 変革への航行：1991年大学設置基準改正と相次ぐガバナンス改革</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>1991年の<span class="tooltip">大学設置基準<span class="tooltiptext">大学を設置する際の施設・設備、教員組織、教育課程などに関する基準です。</span></span><button class="kotobank-btn" data-term="大学設置基準">📖 辞典で引く</button>の大綱化は、日本の大学制度における大きな転換点でした。それまで大学設置基準によって厳格に規制されていた大学運営に、大幅な自由度が与えられました。具体的には、大学が独自のカリキュラムを編成できるようになり、一般教育、専門教育といった授業区分の廃止や、卒業要件が単位数（124単位以上）のみで規定されるなど、大学の裁量が拡大しました。</p>
-                        <p>この自由度の拡大と並行して、教育の質を保証するための<span class="tooltip">自己点検・評価制度<span class="tooltiptext">大学が自らの教育研究活動等を点検・評価する制度のことです。</span></span><button class="gemini-explain-btn" data-term="自己点検・評価制度">✨ AIで解説</button>が導入され、1991年の努力義務化を経て1999年には義務化、さらに2004年には第三者機関による<span class="tooltip">認証評価制度<span class="tooltiptext">文部科学大臣が認証した評価機関が大学を評価する制度です。</span></span><button class="kotobank-btn" data-term="認証評価制度">📖 辞典で引く</button>が導入されました。これは、大学が自由を享受する一方で、その活動成果に対する<span class="tooltip">説明責任<span class="tooltiptext">アカウンタビリティ。活動の結果やプロセスについて、関係者に説明する責任のことです。</span></span><button class="gemini-explain-btn" data-term="アカウンタビリティ">✨ AIで解説</button>（アカウンタビリティ）を果たすことが求められるようになったことを意味します。この規制緩和とアカウンタビリティの強化という組み合わせは、世界的な高等教育改革の潮流とも呼応するものであり、従来の直接的な国家統制から、目標設定と事後評価を通じた間接的な管理へと移行する動きを示しています。しかし、評価制度の導入は、大学が評価基準に過度に適応しようとすることで、かえって教育研究活動の画一化を招いたり、評価のための事務作業が増大したりするといった、意図せざる結果を生む可能性も指摘されます。これは、自由化がもたらす新たなプレッシャーとも言えるでしょう。</p>
-                    </div>
-                </div>
-            </div>
+                <ul>
 
-            <div id="section2" class="content-section">
-                <div class="flex justify-between items-center mb-4">
-                    <h2>II. 日本の大学における学部自治の軌跡</h2>
-                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
-                </div>
-                <p class="text-lg text-gray-600 mb-6">本章では、日本の大学における<span class="tooltip">学部自治<span class="tooltiptext">大学の学部が、教員人事やカリキュラム編成などについて、外部からの干渉を受けずに自律的に意思決定を行うことです。特に教授会の権限がその中核とされてきました。</span></span><button class="kotobank-btn" data-term="学部自治">📖 辞典で引く</button>の歴史的展開を掘り下げます。特に<span class="tooltip">教授会<span class="tooltiptext">学部の教授で構成される会議体です。伝統的に学部運営、特に教員人事や教育課程に関する重要事項の審議・決定機関としての役割を担ってきました。</span></span><button class="kotobank-btn" data-term="教授会">📖 辞典で引く</button>の役割と権限、そしてそれを支える憲法上の理念との関連性に焦点を当てます。</p>
+                    <li><a href="#section1" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">I. 近代日本の大学制度</a></li>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>A. 萌芽期：帝国大学令以前の初期教授会とその役割</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>学部自治の根幹をなすのは、学部教授会の自治の原則であるとされます。1886年（明治19年）の帝国大学令制定以前から、後の帝国大学法科大学・医科大学となる組織には「教授会」と称される管理機関が存在し、学部運営に関する一定の会議が行われていました。また、1881年（明治14年）には、東京大学に後の<span class="tooltip">評議会<span class="tooltiptext">大学の重要事項を審議・決定する機関です。構成員は学内者中心の場合が多いです。</span></span><button class="kotobank-btn" data-term="評議会">📖 辞典で引く</button>および教授会の先駆的形態である東京大学諮詢会が設けられ、学科課程に関する審議権が認められていました。</p>
-                        <p>これらの初期の動きは、法的な裏付けが強固ではなかったものの、専門分野ごとの教育研究運営には、実際に教育研究に携わる教員の関与が不可欠であるという認識が、現場レベルで自然発生的に生まれていたことを示唆しています。たとえ国家主導の大学制度であっても、学問分野の特性に応じた運営には、教員集団による一定の自律的な判断が必要とされたのでしょう。これが、後のより形式化された学部自治の慣行的基盤となったと考えられます。</p>
-                    </div>
-                </div>
+                    <li><a href="#section2" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">II. 学部自治の軌跡</a></li>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>B. 帝国体制下での形成と輪郭：1893年改正と講座制の影響</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>1893年（明治26年）の帝国大学令改正は、学部自治の制度化において重要な意味を持ちます。この改正により、各分科大学（後の学部に相当）に教授会が設置され、同時に講座制が法的に定められました。この改正には、井上毅文部大臣の意向が強く働いたとされ、彼は学部こそが大学の実質的な基盤であると認識していました。井上は、ビスマルクの助言に基づき、学者に専門研究を奨励すれば政治への関与が薄れると考え、講座制導入による専門研究体制の確立を図ったとも言われています。</p>
-                        <p>当初、教授会の法的な権限は、<span class="tooltip">学位<span class="tooltiptext">学術上の能力や業績に対して大学などが授与する称号です。</span></span><button class="kotobank-btn" data-term="学位">📖 辞典で引く</button>授与審査、学部学科課程に関する事項、学生の試験、その他文部大臣または帝国大学総長の諮問事項などに限定されていました。しかし、講座制の導入は、各講座の主任教授に強い権限と独立性を与え、これが教授会における発言力の基盤となりました。講座は、教授を頂点とする階層的な研究・教育単位であり、日本の大学における学問研究の基本的な組織単位として深く根付きました。この講座制と教授会制度の組み合わせは、専門分野ごとの自律性を高める一方で、講座間の壁や学問分野の細分化を助長する可能性も内包していました。また、教授会の権限が法的に限定されていたとしても、国家が専門研究を奨励したという事実は、結果として専門家集団である教授たちの学内における影響力を間接的に高める効果を持ったかもしれません。国家の戦略と学者の専門性が、ある種の共振関係にあった時期と言えます。</p>
-                    </div>
-                </div>
+                    <li><a href="#section3" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">III. 国際比較</a></li>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>C. 「慣行」としての自治の確立：教授会と人事権</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>法的な権限が限定されていたにもかかわらず、教授会は次第に、特に教員人事をめぐって実質的な権限を拡大させていきました。1913年（大正2年）の京都帝国大学における沢柳事件（総長が教授会の意向に反して人事を強行しようとした事件）を契機に、翌年以降、教授の任免は教授会の議を経るという「慣行」が定着しました。</p>
-                        <p>この人事に関する慣行上の自治は、明文化された法規以上に強力な影響力を持ち、学部自治の核心と見なされるようになりました。教授会が自らの構成員を選ぶ権利を持つことは、外部からの不当な干渉を排除し、<span class="tooltip">学問の自由<span class="tooltiptext">研究者が外部の権力や社会の圧力に左右されず、自由に真理を探究し、その成果を発表する権利です。大学の自治はこれを保障するための制度とされます。</span></span><button class="kotobank-btn" data-term="学問の自由">📖 辞典で引く</button>を守るための最も重要な砦であると考えられたのです。法制度の枠組みを超えて慣行が実質的な力を持つに至ったこの展開は、日本の組織文化における非公式な規範の重要性を示す一例とも言えます。この「慣行としての自治」は、成文法規の不備を補う形で、あるいはそれを乗り越える形で、現場の力関係や学内の合意形成を通じて形成されたものであり、日本の大学における自治のあり方を特徴づける重要な要素となりました。</p>
-                    </div>
-                </div>
-                
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>D. 戦後日本の学部自治：憲法的基礎（学問の自由）と伝統的構造の持続</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>第二次世界大戦後、日本国憲法第23条によって「学問の自由」が保障されました。この規定は、判例や学説において、学問の自由を実質的に担保するための制度的保障として「<span class="tooltip">大学の自治<span class="tooltiptext">大学が外部からの干渉を受けずに、教育研究や運営を自律的に行うことです。</span></span><button class="kotobank-btn" data-term="大学の自治">📖 辞典で引く</button>」を含むと解釈されています。大学の自治の内容としては、主に教員の人事の自治、大学の施設および学生の管理の自治が挙げられ、その主体は教授その他の研究者であるとされています。</p>
-                        <p>このような憲法上の裏付けを得て、戦後も伝統的な講座制と、特に人事権を中心とする教授会の強い権限は温存されました。<span class="tooltip">教育公務員特例法<span class="tooltiptext">教育公務員の身分、服務、任免などについて定めた法律です。</span></span><button class="kotobank-btn" data-term="教育公務員特例法">📖 辞典で引く</button>においても、教員人事は「教授会の議に基づき学長が行う」と規定され、多くの学説がこれを教授会の実質的決定権限を認めるものと解釈してきました。戦前の慣行として確立された教授会の人事における優越的地位が、戦後の新たな憲法体制下で追認され、さらに強化された形となりました。これにより、学問の自由という普遍的な理念が、日本の大学においては、講座制と教授会自治という具体的な制度的形態と強く結びついて理解されるようになりました。しかし、この強固な学部・教授会中心の自治は、大学全体の意思決定や戦略的な運営という観点からは、時に機能不全や非効率性を招く要因ともなり得ました。各学部が独立した「城」のようになり、大学全体の改革や資源の再配分が困難になるという課題は、この時期に既に潜在していたと言えるでしょう。</p>
-                    </div>
-                </div>
+                    <li><a href="#section4" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">IV. 総合的分析</a></li>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>E. 現代の力学：自治と説明責任、ガバナンス近代化の狭間で</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>大学の自治は絶対的なものではなく、社会との関係性の中でその範囲やあり方が問われます。その一例が、1963年の最高裁判決が出された<span class="tooltip">東大ポポロ事件<span class="tooltiptext">学生の演劇活動への警察官の立ち入りが大学の自治を侵害するかが争われた事件です。</span></span><button class="kotobank-btn" data-term="ポポロ事件">📖 辞典で引く</button>です。この事件では、学生の演劇活動に対して警察官が立ち入ったことが大学の自治を侵害するかが争われました。最高裁は、大学の自治は主として教授その他の研究者の人事、施設・学生管理について認められるとしつつ、学生の集会であっても、真に学問的な研究・発表ではなく「実社会の政治的社会的活動」と見なされる場合には、大学の特別な学問の自由と自治は享有しないと判断しました。また、<span class="tooltip">学生の学問の自由<span class="tooltiptext">学生が学問研究や学習を行う自由のことです。</span></span><button class="gemini-explain-btn" data-term="学生の学問の自由">✨ AIで解説</button>は、教授らの特別な学問の自由と自治の効果として認められる側面があるとされました。この判決は、大学の自治の範囲に一定の限界を示し、特に学生の政治活動と学問の自由との線引きについて、後々まで影響を与えるものとなりました。</p>
-                        <p>20世紀末から21世紀にかけて、大学に対する社会からの要求が変化し、効率性や説明責任、国際競争力強化の必要性が叫ばれるようになると、伝統的な学部自治のあり方、特に教授会の権限のあり方が改革の対象となりました。1999年の国立学校設置法改正や、2014年の<span class="tooltip">学校教育法<span class="tooltiptext">日本の学校教育制度の基本を定める法律です。</span></span><button class="kotobank-btn" data-term="学校教育法">📖 辞典で引く</button>改正などは、<span class="tooltip">学長<span class="tooltiptext">大学の最高責任者のことです。</span></span><button class="kotobank-btn" data-term="学長">📖 辞典で引く</button>のリーダーシップを強化し、意思決定を迅速化することを目的として、教授会の権限を見直す方向性を示しました。例えば2014年の改正では、学長の決定が教授会の判断に拘束される仕組みは「<span class="tooltip">権限と責任の不一致<span class="tooltiptext">権限を持つ者と責任を負う者が一致していない状態のことです。ガバナンス上の問題とされます。</span></span><button class="gemini-explain-btn" data-term="権限と責任の不一致">✨ AIで解説</button>」を生じさせると指摘され、教授会は教育研究に関する事項の「審議機関」であり、学長等に対し「意見を述べる」関係にあるとされました。</p>
-                        <p>これらの改革は、歴史的に強固であった教授会中心の学部自治から、学長を中心とする大学執行部への権限集中を目指すものであり、日本の大学ガバナンスにおける大きな転換点と言えます。しかし、これは長年にわたる伝統や慣行との間に緊張関係を生み出しています。学問の自由を守るための砦としての学部自治の意義と、社会の変化に対応するための効率的で戦略的な大学運営の必要性との間で、どのようにバランスを取るかが、現代日本の大学が直面する中心的な課題の一つです。この課題は、単なる制度設計の問題ではなく、大学の使命や学者の役割に関する根本的な問いかけを伴う、文化的な変容の過程でもあります。</p>
-                    </div>
-                </div>
-            </div>
+                    <li><a href="#section5" class="nav-link block py-2 px-3 rounded hover:bg-sky-600 hover:text-white transition-colors">V. 結論</a></li>
 
-            <div id="section3" class="content-section">
-                <div class="flex justify-between items-center mb-4">
-                    <h2>III. 大学ガバナンスと学部自治に関する国際比較</h2>
-                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
-                </div>
-                <p class="text-lg text-gray-600 mb-6">本章では、日本の大学制度を、北米（主にアメリカ）およびドイツの大学制度と比較検討します。それぞれのガバナンス構造、学部自治のあり方、歴史的背景などを対比することで、日本特有の特徴を浮き彫りにします。</p>
+                </ul>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>A. 北米モデル（主にアメリカ）：<span class="tooltip">シェアード・ガバナンス<span class="tooltiptext">理事会、大学執行部、教授会（教員組織）の三者が、それぞれ異なる役割を担いつつ大学運営に関与する体制です。共同統治とも言います。</span></span><button class="kotobank-btn" data-term="シェアード・ガバナンス">📖 辞典で引く</button></h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <h4>1. 歴史的背景：AAUPと学問の自由・テニュア制度の発展</h4>
-                        <p>アメリカにおける学問の自由と大学の自治の概念は、最初から確立されていたわけではなく、特に大学の初期の発展期において、資金提供者であり大学理事でもあった産業資本家からの干渉との闘いを通じて形成されてきました。このような背景のもと、1915年に設立された<span class="tooltip">アメリカ大学教授協会（AAUP）<span class="tooltiptext">米国の大学教員の権利擁護団体です。学問の自由やテニュア制度の基準確立に貢献しました。</span></span><button class="kotobank-btn" data-term="AAUP">📖 辞典で引く</button>は、学問の自由と<span class="tooltip">テニュア<span class="tooltiptext">終身在職権のことです。不当な解雇からの保護を通じて学問の自由を保障することを目的とします。</span></span><button class="kotobank-btn" data-term="テニュア">📖 辞典で引く</button>（終身在職権）を擁護し、その基準を確立する上で極めて重要な役割を果たしました。</p>
-                        <p>AAUPが採択した1915年の「基本原則の宣言」や1940年の「学問の自由とテニュアに関する基本原則」は、今日においても学問の自由に関する議論の基礎となる文書です。これらの原則は、研究およびその結果の公表における自由、教室における教授の自由、そして市民としての言論の自由を保障し、テニュアをこれらの自由と経済的安定を確保するための主要な手段と位置づけています。アメリカでは、学問の自由と大学の自治が、教員組織自身の主体的な活動によって定義され、守られてきた歴史があります。これは、国家が大学制度の枠組みを主導的に形成してきた初期の日本とは対照的であり、自治の概念の出自の違いが、その後の両国の大学における自治のあり方に影響を与えた可能性があります。</p>
-                        <h4>2. ガバナンス構造：理事会、大学執行部、教授会の役割</h4>
-                        <p>アメリカの大学ガバナンスは、しばしば「シェアード・ガバナンス（共同統治）」という言葉で特徴づけられます。これは主に、<span class="tooltip">理事会<span class="tooltiptext">大学の最高意思決定機関の一つです。財産管理や学長選任などの権限を持ちます。</span></span><button class="kotobank-btn" data-term="理事会">📖 辞典で引く</button>（Board of Trustees/Regents）、大学執行部（学長、<span class="tooltip">プロヴォスト<span class="tooltiptext">米国の大学における上級管理職で、主に教学担当の副学長を指します。</span></span><button class="gemini-explain-btn" data-term="プロヴォスト">✨ AIで解説</button>、学部長など）、そして教授会（Faculty Senateなど教員組織）の三者が、それぞれ異なる役割を担いつつ、大学運営に関与する体制を指します。</p>
-                        <p>理事会は、大学外部の一般市民（<span class="tooltip">レイ・メンバー<span class="tooltiptext">専門家ではない一般市民の理事のことです。</span></span><button class="gemini-explain-btn" data-term="レイ・メンバー">✨ AIで解説</button>）で構成されることが多く、大学の最終的な法的責任と財産管理責任を負います。「市民による統治」という理念に基づき、「統治はするが、経営管理はしない」という原則の下で運営されます。学長を中心とする大学執行部は、理事会から権限を委譲され、日常的な大学経営と政策実行を担います。一方、教授会は、<span class="tooltip">カリキュラム<span class="tooltiptext">教育課程のことです。教育目標達成のための計画を指します。</span></span><button class="kotobank-btn" data-term="カリキュラム">📖 辞典で引く</button>、教育内容、学位授与基準といった教学に関する事項について主要な責任を持ち、人事や予算など他の領域においても重要な諮問的役割を果たすことが多いです。</p>
-                        <p>この三者間の権力分担と協力関係は、理想的には大学の健全な運営に資しますが、現実には各主体の利害や優先順位が衝突することもあり、緊張関係をはらみます。例えば、カリフォルニア大学では、学科が有効な意思決定ができないと見なされた場合、自治権が剥奪されることもあるとされ、教員自治が無条件に保証されるわけではないことが示されています。また、バージニア大学で2012年に起きた学長解任騒動は、理事会と教員の間の深刻な対立を露呈しました。シェアード・ガバナンスは、固定的な制度というよりは、常に動的な交渉と力関係の調整が行われるプロセスと言えるでしょう。</p>
-                        <h4>3. 学部自治の性格：範囲、条件、テニュア制度</h4>
-                        <p>アメリカにおける教員の学問的自律性は、テニュア制度と密接に結びついています。試用期間を経て付与されるテニュアは、不当な解雇からの保護を通じて学問の自由を保障することを目的としています。</p>
-                        <p>教員の権限が最も強いのは、カリキュラム、教育方法、研究活動といった教学分野です。教員人事（採用、昇進、テニュア付与）に関しては、通常、教員委員会が詳細な審査を行い勧告を出しますが、最終的な決定権は大学執行部や理事会にあることが多いです。ただし、教員の専門的判断は非常に重視されます。アメリカの大学教員は流動性が高く、テニュア取得後も他の大学へ移籍することが少なくありません。</p>
-                        <p>日本の伝統的な学部教授会が人事に強い決定権を持っていた（近年の改革以前）ことと比較すると、アメリカのシステムは、教員の専門的意見を尊重しつつも、最終決定権を大学執行部や理事会が保持するという点で、より「シェアード」な性格が強いと言えます。テニュアは個々の教員の学問の自由を強力に保障しますが、組織としての学部や学科の自治権が、日本の伝統的な学部自治ほど人事に直接的な最終決定力を持つわけではありません。</p>
-                    </div>
-                </div>
+            </nav>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>B. ドイツモデル：<span class="tooltip">フンボルト理念<span class="tooltiptext">ヴィルヘルム・フォン・フンボルトが提唱した大学理念です。研究と教育の統一、学問の自由（学ぶ自由・教える自由）を中核とします。</span></span><button class="kotobank-btn" data-term="フンボルト理念">📖 辞典で引く</button>とその実践的展開</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <h4>1. 中核理念：「学問の自由」と大学の自治</h4>
-                        <p>ドイツの大学モデルは、ヴィルヘルム・フォン・フンボルトが提唱した理念に深く影響されています。その中核は、研究と教育の統一（<span class="tooltip">$Einheit \ von \ Forschung \ und \ Lehre$<span class="tooltiptext">ドイツ語で「研究と教育の統一」を意味し、フンボルト理念の核心です。</span></span><button class="gemini-explain-btn" data-term="Einheit von Forschung und Lehre">✨ AIで解説</button>）、そして学問の自由（$Freiheit \ der \ Wissenschaft$：学生にとっては<span class="tooltip">$Lernfreiheit$<span class="tooltiptext">ドイツ語で「学ぶ自由」を意味します。</span></span><button class="gemini-explain-btn" data-term="Lernfreiheit">✨ AIで解説</button>（学ぶ自由）、教授にとっては<span class="tooltip">$Lehrfreiheit$<span class="tooltiptext">ドイツ語で「教える自由」を意味します。</span></span><button class="gemini-explain-btn" data-term="Lehrfreiheit">✨ AIで解説</button>（教える自由））です。フンボルトは、大学が国家や経済界からの直接的な干渉から独立し、純粋に知識を探求する場であるべきだと主張しました。その理想においては、学生も研究プロセスに参加し、教員と学生は「知識の前では同格」であるとされました。</p>
-                        <p>しかし、このフンボルト理念の解釈と実践は一筋縄ではいきません。フンボルト自身、大学の完全な自治を主張しつつも、教授選考に関しては、縁故主義を防ぐために国家の関与をむしろ肯定的に捉えていた側面があります。これは、理想としての大学の自由と、現実的な大学運営における質保証という、二つの要請の間にある初期の緊張関係を示しています。フンボルト理念が、しばしば純粋な大学自治の象徴として語られることとは裏腹に、その起源において既に国家との複雑な関係性を内包していた点は重要です。</p>
-                        <h4>2. 教授選考：国家の関与と大学の権限の歴史</h4>
-                        <p>19世紀以前のドイツでは、大学の教授会が教授選考の自治権を持っていましたが、これが縁故採用や情実人事、さらには贈収賄の温床となり、大学の質を著しく低下させる事態を招きました。この危機的状況に対し、フンボルトの考え方を反映した改革が行われ、教授任命権は国家（文部省）に大きく移管されました。大学（学部教授会）は通常3名の候補者リストを推薦しますが、文部大臣はこれに拘束されず、リスト外の人物を任命することも可能でした。これは、国家と大学による「<span class="tooltip">共同選考方式<span class="tooltiptext">ドイツの伝統的な教授選考方式で、大学が推薦し、国家が任命する形式です。</span></span><button class="gemini-explain-btn" data-term="共同選考方式">✨ AIで解説</button>」であり、両者の間には常に緊張関係が存在しました。</p>
-                        <p>近年、一部の州ではこの伝統的な方式が改革され、教授任命の最終決定権を文部大臣から個々の大学（多くは学長を中心とする大学執行部）へ移譲する動きが見られます。これは、大学の自主性と国際競争力を高めることを目的としたものであり、ある意味では「フンボルト以前」の大学の自治権回復とも言えますが、同時にかつての弊害を繰り返さないための新たな説明責任とガバナンス体制が求められます。ドイツの教授選考の歴史は、学問的自律性と質の維持、そして国家の役割をめぐる、弁証法的な発展の過程を示していると言えるでしょう。</p>
-                        <h4>3. ドイツ大学ガバナンスにおける教員の影響力</h4>
-                        <p>歴史的に国家が教授任命に強い権限を持っていた一方で、ドイツの教授（特に正教授・講座主任教授）は、自身の講座における研究と教育に関して伝統的に大きな自由と独立性を享受してきました。1960年代の大学紛争以降、多くの州で大学法が改正され、若手教員や学生も大学運営に参加する道が開かれました。1976年には<span class="tooltip">連邦大学大綱法<span class="tooltiptext">旧西ドイツの大学制度の一般原則を定めた法律です。</span></span><button class="gemini-explain-btn" data-term="連邦大学大綱法">✨ AIで解説</button>が制定され、大学制度の一般原則が示されました。</p>
-                        <p>現代のドイツの大学ガバナンスは、学部、大学中央執行部（学長・総長室）、そして州の文部省がそれぞれに関与する複雑な構造を持ちます。教員は各種評議会や委員会を通じて意思決定に参加しますが、その権限のバランスは州や大学によって異なります。フンボルト理念における個々の教授の自由という理想は、マス高等教育化と社会からの説明責任要求の高まりの中で、より組織的で参加型のガバナンスモデルへと変容し、近年ではさらに大学全体の戦略的運営を担う中央執行部の権限強化という方向に進んでいます。</p>
-                    </div>
-                </div>
-            </div>
+        </aside>
 
-            <div id="section4" class="content-section">
-                <div class="flex justify-between items-center mb-4">
-                    <h2>IV. 総合的分析：比較の視座から見た日本システムの独自性</h2>
-                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
-                </div>
-                <p class="text-lg text-gray-600 mb-6">本章では、これまでの歴史的概観と比較検討を踏まえ、日本の大学制度、特に学部自治のあり方について、その独自性を分析します。</p>
-                
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>A. 相違点の明確化：日本の学部自治とガバナンスの比較</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>日本の大学における学部自治、特に教授会による人事権の強さは、アメリカやドイツの伝統的なモデルと比較して際立った特徴を持っています。アメリカでは、教員人事のプロセスは「シェアード」であり、教員委員会の推薦を基に大学執行部や理事会が最終決定権を持ちます。ドイツでは、歴史的に国家（文部省）が教授任命の最終権限を握り、大学の推薦に拘束されませんでした。これに対し、日本の帝国大学以来の伝統では、学部教授会が教員人事に事実上の決定権を持ち、これは「慣行」として確立され、戦後の憲法下でも長く維持されてきました。この学部レベルでの強力な人事権は、日本の学部自治を他国と比較して非常に強固なものとしましたが、同時に大学全体の戦略的人事や学際的な取り組みを困難にする要因ともなり得ました。</p>
-                        <p>また、大学の自治の所在という点でも違いが見られます。日本では、自治の単位が伝統的に学部（教授会）に強く置かれてきました。アメリカでは理事会、大学執行部、教授会による「シェアード・ガバナンス」が基本であり、ドイツでは個々の教授の学問の自由が尊重される一方で、大学運営には国家も深く関与してきました。</p>
-                        <p>外部からのガバナンスという点では、アメリカにおける強力な権限を持つ独立した理事会（レイ・ボード）の伝統は、日本では希薄でした。日本の国立大学においては、主たる外部のカウンターパートは<span class="tooltip">文部科学省<span class="tooltiptext">日本の教育、科学技術、学術、文化、スポーツなどを所管する行政機関です。</span></span><button class="kotobank-btn" data-term="文部科学省">📖 辞典で引く</button>であり、国家との直接的な関係性が大学運営に大きな影響を与えてきました。2004年の<span class="tooltip">国立大学法人化<span class="tooltiptext">国立大学が国から独立した法人格を持つ組織に移行した改革です。</span></span><button class="kotobank-btn" data-term="国立大学法人化">📖 辞典で引く</button>以降、経営協議会などに外部委員が導入されましたが、その権限や機能はアメリカの理事会とは異なると言えます。</p>
-                        <p>これらの比較から、日本の学部自治は、特に人事面において、学部という単位で非常に強い自律性を有してきた点が特徴的です。しかし、それは大学全体のガバナンスという観点からは、分権的過ぎるという課題を抱え、近年の改革の焦点となっています。</p>
-                        
-                        <h4 class="mt-6 mb-3">表1：大学ガバナンスと学部自治の国際比較</h4>
-                        <div class="table-container">
-                            <table class="w-full border-collapse border border-gray-300">
-                                <thead>
-                                    <tr>
-                                        <th>特徴</th>
-                                        <th>日本（伝統的／近年の動向）</th>
-                                        <th>アメリカ（USA）</th>
-                                        <th>ドイツ（伝統的／近年の動向）</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong>自治の主たる所在</strong></td>
-                                        <td>学部／教授会（伝統的）。近年は学長執行部へ権限集中傾向です。</td>
-                                        <td>理事会、大学執行部、教授会によるシェアード・ガバナンスです。</td>
-                                        <td>個々の教授（研究・教育）。国家（州文部省）も重要です。近年は大学執行部の権限強化傾向です。</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>教授任命プロセス</strong></td>
-                                        <td>教授会が事実上の決定権（伝統的）。近年は学長の関与強化です。</td>
-                                        <td>教員委員会が推薦、大学執行部／理事会が最終決定します。</td>
-                                        <td>国家（州文部省）が最終決定（伝統的）。近年一部州で大学が最終決定権を持つように改革されています。</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>教授会／教員評議会の役割</strong></td>
-                                        <td>人事・カリキュラム等に強い決定権（伝統的）。審議機関・諮問機関としての性格強化（近年）です。</td>
-                                        <td>教学事項（カリキュラム等）に主要な責任、人事・予算等に諮問的役割を果たします。</td>
-                                        <td>教授候補者リスト作成など。運営への関与は州法等によります。</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>中央執行部（学長等）の役割</strong></td>
-                                        <td>教授会の決定を執行（伝統的）。リーダーシップ強化、戦略的意思決定の主体へ（近年）移行しています。</td>
-                                        <td>大学経営の最高責任者、理事会から権限委譲されます。</td>
-                                        <td>大学代表、運営責任者です。州文部省との関係で権限が規定されます。近年リーダーシップ強化の傾向です。</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>外部理事会等の役割</strong></td>
-                                        <td>希薄（伝統的）。国立大学法人化で経営協議会に外部委員導入。私学は理事会があります。</td>
-                                        <td>強力な権限を持つレイ・ボード（理事会）が最終責任を負います。</td>
-                                        <td>州文部省が監督します。近年、一部で外部有識者を含む大学評議会等の設置も見られます。</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>学問の自由／自治の根拠</strong></td>
-                                        <td>憲法23条、慣行、教育公務員特例法等です。</td>
-                                        <td>憲法修正第1条（間接的）、AAUP等の専門職団体基準、判例、慣行です。</td>
-                                        <td>基本法（憲法）、州大学法、フンボルト理念の伝統です。</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>B. 影響の軌跡：国際的モデルの日本における受容と変容</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>日本の大学制度は、その成立と発展の過程で、常に海外のモデルを意識し、取り入れてきました。明治初期には、ドイツの大学、特にその研究重視の姿勢や講座制が帝国大学のモデルの一つとなりました。戦後改革においては、アメリカの4年制大学システム、一般教育、そして学問の自由という理念が導入されました。近年のガバナンス改革に見られる学長リーダーシップの強化や説明責任の重視といった動向も、欧米の高等教育改革（<span class="tooltip">新公共経営論的アプローチ<span class="tooltiptext">行政に市場原理や民間企業経営の手法を導入する考え方です。</span></span><button class="gemini-explain-btn" data-term="新公共経営論的アプローチ">✨ AIで解説</button>など）と軌を一にする部分があります。</p>
-                        <p>しかし、これらの外来モデルは、日本にそのまま移植されたわけではありません。常に日本の既存の制度、文化、政治的文脈の中で解釈され、変容を伴いながら受容されてきました。例えば、戦後にアメリカ型の大学制度が導入された後も、戦前からの講座制や教授会の強い権限といった伝統は根強く残り、アメリカの制度と日本の伝統が融合した独特のシステムが形成されました。この「選択的受容」と「<span class="tooltip">土着化<span class="tooltiptext">外来の文化や制度が、現地の文化や慣習に合わせて変容し、定着することです。</span></span><button class="gemini-explain-btn" data-term="土着化">✨ AIで解説</button>」のプロセスは、日本の大学制度の独自性を理解する上で不可欠な視点です。単にどの国のモデルに影響されたかというだけでなく、それがどのように日本的な文脈で再解釈され、実践されたのかを問う必要があります。</p>
-                    </div>
-                </div>
 
-                <div class="collapsible">
-                    <div class="collapsible-header">
-                        <h3>C. 日本の大学ガバナンスにおける持続的特徴と現代的課題</h3>
-                        <span>▲</span>
-                    </div>
-                    <div class="collapsible-content">
-                        <p>日本の大学ガバナンスには、講座制の遺産（変容しつつも）、歴史的に強力であった学部レベルの意思決定（特に教授会）、そして中央政府（文部科学省）との密接かつ変化し続ける関係性といった、いくつかの持続的な特徴が見られます。</p>
-                        <p>現代における課題は多岐にわたります。強固な機関としてのリーダーシップと戦略的経営の必要性と、伝統的な学部自治および学問の自由との間のバランスをいかに取るか。少子化が進む中での高等教育の質の保証と社会への適合性。そして、財政的制約の中でいかにイノベーションを促進し、国際競争力を高めるか。特に、伝統的に強かった教授会の権限と、改革によって強化されつつある学長・執行部のリーダーシップとの間の緊張関係は、依然として日本の大学ガバナンスにおける核心的な論点の一つです。</p>
-                        <p>この中心的な課題は、自治の所在を従来の学部・学科レベル（多くは専門分野の保護に焦点が当てられていた）から、より大きな機関としての一貫性と中央からの戦略的指示、そして外部の利害関係者への説明責任が求められるシステムへと移行させる中で、いかにして学部自治が本来保護すべき学問の自由と自発性を損なわないようにするか、という点に集約されます。これは単なる管理構造の再編ではなく、大学における「自治」の理解と実践そのものを根本から問い直す、困難な調整作業です。リーダーシップ強化を目的とした改革が、慎重に実施されなければ、それが向上させようとしている学術的な活力をかえって削いでしまう危険性もはらんでいます。</p>
-                    </div>
-                </div>
-            </div>
+        <main class="flex-1 p-6 md:p-10 bg-white overflow-y-auto">
 
-            <div id="section5" class="content-section">
-                 <div class="flex justify-between items-center mb-4">
-                    <h2>V. 結論：歴史的道程の省察と将来展望</h2>
-                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
-                </div>
-                <p class="text-lg text-gray-600 mb-6">日本の大学制度は、明治期の国家主導による設立から、戦後のアメリカ型システムへの大規模な転換、そして近年のグローバル化と社会の要請に応じたガバナンス改革に至るまで、絶えざる変容の過程を歩んできました。その中で、学部自治、特に教授会を中心とする自治のあり方は、日本の大学の独自性を象徴する要素の一つとして、その形態を変えながらも重要な役割を果たし続けてきました。</p>
-                <p>帝国大学令下で萌芽し、慣行として人事権を確立した学部自治は、戦後、憲法上の学問の自由という理念的支柱を得て、講座制とともに日本の大学における研究教育の基盤となりました。しかし、この学部レベルでの強い自治は、時に大学全体の戦略的運営や迅速な意思決定を阻害する要因ともなり、21世紀に入ると学長リーダーシップ強化を企図したガバナンス改革の対象となりました。</p>
-                <p>アメリカのシェアード・ガバナンスやドイツのフンボルト理念と国家の関与の歴史と比較すると、日本の学部自治は、特に人事における教授会の伝統的な権限の強さにおいて際立っています。また、外来モデルを積極的に導入しつつも、それを国内の文脈で変容させ、独自のハイブリッドなシステムを形成してきた点も日本の特徴と言えます。</p>
-                <p>現在、日本の大学は、伝統的な学部自治の精神を活かしつつ、いかにして社会からの期待に応え、国際的な競争の中で発展していくかという大きな課題に直面しています。学長のリーダーシップ強化と学部・教員の自律性との適切なバランス、そして真の学問の自由を保障するための制度設計は、今後も継続的な模索が求められるでしょう。日本の大学制度の歴史は、伝統、外来モデル、そして内発的な改革努力が織りなす複雑なタペストリーであり、その進化は今も続いています。この歴史的道程を深く理解することは、日本の高等教育の未来を構想する上で不可欠な作業と言えるでしょう。</p>
-            </div>
-        </main>
-    </div>
+            <header class="mb-8">
 
-    <div id="geminiModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 100;">
-      <div class="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="geminiModalTitle">✨ AIによる解説</h3>
-            <button id="closeGeminiModalX" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-          </div>
-          <div class="mt-2 px-7 py-3 max-h-[60vh] overflow-y-auto">
-            <div id="geminiModalContent" class="text-sm text-gray-700 text-left">読み込み中...</div>
-          </div>
-          <div class="items-center px-4 py-3 border-t mt-4">
-            <button id="closeGeminiModal" class="px-4 py-2 bg-sky-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-300">
-              閉じる
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+                <h1 class="text-3xl md:text-4xl font-bold text-center text-sky-700">日本の大学制度の歴史的変遷と学部自治：国際比較の視座から</h1>
 
-    <script>
+            </header>
+
+
+
+            <div id="section1" class="content-section">
+
+                <div class="flex justify-between items-center mb-4">
+
+                    <h2>I. 近代日本大学制度の展開：歴史的概観</h2>
+
+                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
+
+                </div>
+
+                <p class="text-lg text-gray-600 mb-6">本章では、日本の近代大学制度が成立し、変容を遂げてきた歴史的過程を概観します。主要な法制度や構造的変化、そしてその背景にある理念や社会的要求に着目し、現代に至るまでの軌跡を辿ります。</p>
+
+               
+
+                <div id="infographic-timeline-container" class="infographic-timeline-container">
+
+                    <h3 class="mb-4 text-xl font-semibold text-gray-700">主要な出来事のインフォグラフィック・タイムライン</h3>
+
+                    <div class="infographic-timeline">
+
+                        <div class="timeline-card" data-event="event1">
+
+                            <div class="timeline-card-icon">📜</div>
+
+                            <div class="timeline-card-year">1886年</div>
+
+                            <div class="timeline-card-title">帝国大学令 公布</div>
+
+                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
+
+                        </div>
+
+                        <div class="timeline-card" data-event="event2">
+
+                            <div class="timeline-card-icon">🏛️</div>
+
+                            <div class="timeline-card-year">1918年</div>
+
+                            <div class="timeline-card-title">大学令 公布</div>
+
+                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
+
+                        </div>
+
+                        <div class="timeline-card" data-event="event3">
+
+                            <div class="timeline-card-icon">🎓</div>
+
+                            <div class="timeline-card-year">1949年</div>
+
+                            <div class="timeline-card-title">教育改革 (新制大学)</div>
+
+                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
+
+                        </div>
+
+                        <div class="timeline-card" data-event="event4">
+
+                            <div class="timeline-card-icon">🔄</div>
+
+                            <div class="timeline-card-year">1991年</div>
+
+                            <div class="timeline-card-title">大学設置基準 大綱化</div>
+
+                             <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
+
+                        </div>
+
+                        <div class="timeline-card" data-event="event5">
+
+                             <div class="timeline-card-icon">🏢</div>
+
+                            <div class="timeline-card-year">2004年</div>
+
+                            <div class="timeline-card-title">国立大学法人化</div>
+
+                            <p class="timeline-card-desc-trigger">クリックで詳細表示</p>
+
+                        </div>
+
+                    </div>
+
+                    <div id="timeline-description-area" class="timeline-description-area" style="display:none;"></div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>A. 明治期における礎石：帝国大学と講座制</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>明治政府にとって、大学は近代国家建設に不可欠な官僚および専門職業人の養成機関として位置づけられました。特に法学、医学、工学といった実学が重視され、この実学志向は初期の日本の高等教育の性格を強く規定しました。1886年の<span class="tooltip">帝国大学令<span class="tooltiptext">日本の大学制度の基礎を築いた法令です。国家の要請に応える学術技芸の教授と研究を目的としました。</span></span><button class="kotobank-btn" data-term="帝国大学令">📖 辞典で引く</button>公布と、それに伴う東京大学の「<span class="tooltip">帝国大学<span class="tooltiptext">帝国大学令に基づき設置された大学です。当初は東京大学のみでした。</span></span><button class="kotobank-btn" data-term="帝国大学">📖 辞典で引く</button>」への改称は、日本の大学史における画期的な出来事でした。帝国大学令は、帝国大学の目的を「国家ノ須要ニ応スル学術技芸ヲ教授シ及其蘊奥ヲ攷究スル」ことと定め、国家の要請に応えるという明確な方向性を示しました。この国家主導の性格は、中世ヨーロッパの大学が持つような自律性とは異なり、日本の大学が「近代化の装置」として機能したことを物語っています。</p>
+
+                        <p>帝国大学制度の確立と並行して導入されたのが<span class="tooltip">講座制<span class="tooltiptext">教授ごとに独立した研究・教育単位を設ける制度です。専門分野の深化を促しましたが、後の学部自治の基盤ともなる教授個々の研究室の独立性を育みました。</span></span><button class="kotobank-btn" data-term="講座制">📖 辞典で引く</button>です。これは、教授ごとに独立した研究・教育単位を設けるものであり、専門分野の深化を促す一方で、後の学部自治の基盤ともなる教授個々の研究室の独立性を育むことになりました。しかし、明治初期の大学制度は、国家の強力な中央集権体制構築という背景の下にあり、大学の自律性は限定的でした。大学はまず国家の発展を支える知的基盤としての役割を期待されたのです。この初期の設計思想は、大学が国家目標と不可分に結びつくという、その後の日本の大学制度の展開に大きな影響を与える「<span class="tooltip">経路依存性<span class="tooltiptext">過去の選択や経緯が、その後の選択肢や発展方向を制約する現象のことです。</span></span><button class="gemini-explain-btn" data-term="経路依存性">✨ AIで解説</button>」を生んだと言えます。つまり、大学の「自治」という概念も、国家の枠組みの中で許容される、あるいは国家目標達成のために機能するものとして理解される傾向が生まれたのです。また、実学偏重は、西洋列強に追いつくための現実的な要請でしたが、幅広い教養や批判的精神の涵養といった大学のもう一つの側面が、初期段階では相対的に重視されなかった可能性も示唆しています。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>B. 戦前期の展開：拡大、国家の影響、そして私学の勃興</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>明治後半から昭和初期にかけて、大学教育は量的にも質的にも拡大しました。1897年の京都帝国大学設立を皮切りに、全国に帝国大学が設置され、これらは当時の最高学府として、官僚・専門職養成と学術研究推進の二大使命を担いました。</p>
+
+                        <p>この時代における特筆すべき変化は、1918年の<span class="tooltip">大学令<span class="tooltiptext">帝国大学以外の私立学校なども「大学」として認可される道を開いた法令です。</span></span><button class="kotobank-btn" data-term="大学令">📖 辞典で引く</button>の公布です。これにより、それまで帝国大学のみが法的に「大学」とされてきた状況が変わり、一定の基準を満たした<span class="tooltip">私立学校<span class="tooltiptext">私人が設立・運営する学校です。大学令により大学としての地位を得る道が開かれました。</span></span><button class="kotobank-btn" data-term="私立大学">📖 辞典で引く</button>も「大学」として正式に認可される道が開かれました。福澤諭吉の慶應義塾や新島襄の同志社など、私塾の伝統を引き継ぎ、創立者の個性が色濃い学風を持つ学校や、法治国家建設に必要な法律家人材を養成する学校などが、大学へと昇格しました。これにより、高等教育の裾野は広がったものの、戦前の大学制度は依然としてエリート教育が中心であり、国家の強い統制下に置かれていた点は変わりませんでした。女子の大学進学も津田塾大学など一部の機関を除き限定的でした。</p>
+
+                        <p>大学令による私学の正式な認知は、高等教育における多様性の萌芽と言えますが、帝国大学を頂点とする階層構造は維持されました。これは、国家が依然として高等教育の質と方向性に対して強い影響力を保持しようとしたことの現れでしょう。私学の多様な出自は、官立の帝国大学とは異なる教育理念や学風を生み出す素地となったものの、それらもまた、国家が設定した大きな枠組みの中で運営されることを余儀なくされました。</p>
+
+                    </div>
+
+                </div>
+
+               
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>C. 第二次世界大戦後の変革：米国主導の改革と新制大学の誕生</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>第二次世界大戦敗戦後、日本の大学制度はアメリカの強い影響下で抜本的な<span class="tooltip">教育改革<span class="tooltiptext">戦後、GHQ指導のもとで行われた教育制度全般の改革です。大学制度も大きく変更されました。</span></span><button class="kotobank-btn" data-term="教育改革">📖 辞典で引く</button>を経験しました。特に1949年の教育改革は、戦前の複線的な高等教育機関（大学、<span class="tooltip">旧制高等学校<span class="tooltiptext">戦前の高等教育機関の一つです。大学予科の性格を持ちました。</span></span><button class="kotobank-btn" data-term="旧制高等学校">📖 辞典で引く</button>、<span class="tooltip">専門学校<span class="tooltiptext">戦前の高等教育機関の一つです。特定の専門分野の教育を行いました。</span></span><button class="kotobank-btn" data-term="専門学校 (旧制)">📖 辞典で引く</button>、<span class="tooltip">師範学校<span class="tooltiptext">戦前の教員養成機関です。</span></span><button class="kotobank-btn" data-term="師範学校">📖 辞典で引く</button>など）を「4年制大学」として一本化し、多くの人々が高等教育へアクセスできる道を開きました。この改革は、少数の特権階級のための高等教育という戦前のあり方を批判し、学校体系の単純化を目指すものでした。</p>
+
+                        <p>この改革により、私立大学が急増し、全国的に高等教育の機会が拡大しました。また、各都道府県に少なくとも一つの国立総合大学を設置するという方針（「一県一大学構想」）のもと、多くの<span class="tooltip">新制大学<span class="tooltiptext">戦後の教育改革により発足した4年制大学のことです。</span></span><button class="kotobank-btn" data-term="新制大学">📖 辞典で引く</button>が、既存の高等教育機関を統合・再編する形で誕生しました。例えば、京都大学は第三高等学校などを統合し、地方では師範学校や専門学校が母体となって新制大学が設立された例も多いです。さらに、戦前の専門教育中心のカリキュラムから転換し、アメリカの「<span class="tooltip">リベラルアーツ<span class="tooltiptext">一般教養のことです。幅広い分野の知識や思考力を養うことを目的とする教育です。</span></span><button class="kotobank-btn" data-term="リベラルアーツ">📖 辞典で引く</button>」の考え方を取り入れた<span class="tooltip">一般教育<span class="tooltiptext">専門教育に対し、幅広い分野の基礎的知識や教養を身につけさせる教育です。</span></span><button class="kotobank-btn" data-term="一般教育">📖 辞典で引く</button>（<span class="tooltip">教養科目<span class="tooltiptext">一般教育で履修する科目群のことです。</span></span><button class="kotobank-btn" data-term="教養科目">📖 辞典で引く</button>）が導入され、1・2年次に幅広い科目を学ぶカリキュラムが整備されました。</p>
+
+                        <p>戦後の大学改革は、理念としては民主化と機会均等を目指すものでしたが、その実施過程においては、連合国軍総司令部（GHQ/SCAP）の民間情報教育局（CIE）による強力なトップダウンの指示が見られました。これは、改革の内容がアメリカ的民主主義に基づいていたとしても、その導入プロセス自体は中央集権的な性格を帯びていたことを示しています。また、多様な背景を持つ教育機関を画一的な「新制大学」の枠組みに統合したことは、量的拡大には貢献したものの、各大学の個性や教育の質の維持という点では新たな課題を生んだ可能性があります。旧制の帝国大学や有力私学と、師範学校や専門学校を母体とする新制大学との間には、資源や伝統の面で格差が存在し、その後の大学間の序列意識にも影響を与えたと考えられます。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>D. 変革への航行：1991年大学設置基準改正と相次ぐガバナンス改革</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>1991年の<span class="tooltip">大学設置基準<span class="tooltiptext">大学を設置する際の施設・設備、教員組織、教育課程などに関する基準です。</span></span><button class="kotobank-btn" data-term="大学設置基準">📖 辞典で引く</button>の大綱化は、日本の大学制度における大きな転換点でした。それまで大学設置基準によって厳格に規制されていた大学運営に、大幅な自由度が与えられました。具体的には、大学が独自のカリキュラムを編成できるようになり、一般教育、専門教育といった授業区分の廃止や、卒業要件が単位数（124単位以上）のみで規定されるなど、大学の裁量が拡大しました。</p>
+
+                        <p>この自由度の拡大と並行して、教育の質を保証するための<span class="tooltip">自己点検・評価制度<span class="tooltiptext">大学が自らの教育研究活動等を点検・評価する制度のことです。</span></span><button class="gemini-explain-btn" data-term="自己点検・評価制度">✨ AIで解説</button>が導入され、1991年の努力義務化を経て1999年には義務化、さらに2004年には第三者機関による<span class="tooltip">認証評価制度<span class="tooltiptext">文部科学大臣が認証した評価機関が大学を評価する制度です。</span></span><button class="kotobank-btn" data-term="認証評価制度">📖 辞典で引く</button>が導入されました。これは、大学が自由を享受する一方で、その活動成果に対する<span class="tooltip">説明責任<span class="tooltiptext">アカウンタビリティ。活動の結果やプロセスについて、関係者に説明する責任のことです。</span></span><button class="gemini-explain-btn" data-term="アカウンタビリティ">✨ AIで解説</button>（アカウンタビリティ）を果たすことが求められるようになったことを意味します。この規制緩和とアカウンタビリティの強化という組み合わせは、世界的な高等教育改革の潮流とも呼応するものであり、従来の直接的な国家統制から、目標設定と事後評価を通じた間接的な管理へと移行する動きを示しています。しかし、評価制度の導入は、大学が評価基準に過度に適応しようとすることで、かえって教育研究活動の画一化を招いたり、評価のための事務作業が増大したりするといった、意図せざる結果を生む可能性も指摘されます。これは、自由化がもたらす新たなプレッシャーとも言えるでしょう。</p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="section2" class="content-section">
+
+                <div class="flex justify-between items-center mb-4">
+
+                    <h2>II. 日本の大学における学部自治の軌跡</h2>
+
+                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
+
+                </div>
+
+                <p class="text-lg text-gray-600 mb-6">本章では、日本の大学における<span class="tooltip">学部自治<span class="tooltiptext">大学の学部が、教員人事やカリキュラム編成などについて、外部からの干渉を受けずに自律的に意思決定を行うことです。特に教授会の権限がその中核とされてきました。</span></span><button class="kotobank-btn" data-term="学部自治">📖 辞典で引く</button>の歴史的展開を掘り下げます。特に<span class="tooltip">教授会<span class="tooltiptext">学部の教授で構成される会議体です。伝統的に学部運営、特に教員人事や教育課程に関する重要事項の審議・決定機関としての役割を担ってきました。</span></span><button class="kotobank-btn" data-term="教授会">📖 辞典で引く</button>の役割と権限、そしてそれを支える憲法上の理念との関連性に焦点を当てます。</p>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>A. 萌芽期：帝国大学令以前の初期教授会とその役割</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>学部自治の根幹をなすのは、学部教授会の自治の原則であるとされます。1886年（明治19年）の帝国大学令制定以前から、後の帝国大学法科大学・医科大学となる組織には「教授会」と称される管理機関が存在し、学部運営に関する一定の会議が行われていました。また、1881年（明治14年）には、東京大学に後の<span class="tooltip">評議会<span class="tooltiptext">大学の重要事項を審議・決定する機関です。構成員は学内者中心の場合が多いです。</span></span><button class="kotobank-btn" data-term="評議会">📖 辞典で引く</button>および教授会の先駆的形態である東京大学諮詢会が設けられ、学科課程に関する審議権が認められていました。</p>
+
+                        <p>これらの初期の動きは、法的な裏付けが強固ではなかったものの、専門分野ごとの教育研究運営には、実際に教育研究に携わる教員の関与が不可欠であるという認識が、現場レベルで自然発生的に生まれていたことを示唆しています。たとえ国家主導の大学制度であっても、学問分野の特性に応じた運営には、教員集団による一定の自律的な判断が必要とされたのでしょう。これが、後のより形式化された学部自治の慣行的基盤となったと考えられます。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>B. 帝国体制下での形成と輪郭：1893年改正と講座制の影響</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>1893年（明治26年）の帝国大学令改正は、学部自治の制度化において重要な意味を持ちます。この改正により、各分科大学（後の学部に相当）に教授会が設置され、同時に講座制が法的に定められました。この改正には、井上毅文部大臣の意向が強く働いたとされ、彼は学部こそが大学の実質的な基盤であると認識していました。井上は、ビスマルクの助言に基づき、学者に専門研究を奨励すれば政治への関与が薄れると考え、講座制導入による専門研究体制の確立を図ったとも言われています。</p>
+
+                        <p>当初、教授会の法的な権限は、<span class="tooltip">学位<span class="tooltiptext">学術上の能力や業績に対して大学などが授与する称号です。</span></span><button class="kotobank-btn" data-term="学位">📖 辞典で引く</button>授与審査、学部学科課程に関する事項、学生の試験、その他文部大臣または帝国大学総長の諮問事項などに限定されていました。しかし、講座制の導入は、各講座の主任教授に強い権限と独立性を与え、これが教授会における発言力の基盤となりました。講座は、教授を頂点とする階層的な研究・教育単位であり、日本の大学における学問研究の基本的な組織単位として深く根付きました。この講座制と教授会制度の組み合わせは、専門分野ごとの自律性を高める一方で、講座間の壁や学問分野の細分化を助長する可能性も内包していました。また、教授会の権限が法的に限定されていたとしても、国家が専門研究を奨励したという事実は、結果として専門家集団である教授たちの学内における影響力を間接的に高める効果を持ったかもしれません。国家の戦略と学者の専門性が、ある種の共振関係にあった時期と言えます。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>C. 「慣行」としての自治の確立：教授会と人事権</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>法的な権限が限定されていたにもかかわらず、教授会は次第に、特に教員人事をめぐって実質的な権限を拡大させていきました。1913年（大正2年）の京都帝国大学における沢柳事件（総長が教授会の意向に反して人事を強行しようとした事件）を契機に、翌年以降、教授の任免は教授会の議を経るという「慣行」が定着しました。</p>
+
+                        <p>この人事に関する慣行上の自治は、明文化された法規以上に強力な影響力を持ち、学部自治の核心と見なされるようになりました。教授会が自らの構成員を選ぶ権利を持つことは、外部からの不当な干渉を排除し、<span class="tooltip">学問の自由<span class="tooltiptext">研究者が外部の権力や社会の圧力に左右されず、自由に真理を探究し、その成果を発表する権利です。大学の自治はこれを保障するための制度とされます。</span></span><button class="kotobank-btn" data-term="学問の自由">📖 辞典で引く</button>を守るための最も重要な砦であると考えられたのです。法制度の枠組みを超えて慣行が実質的な力を持つに至ったこの展開は、日本の組織文化における非公式な規範の重要性を示す一例とも言えます。この「慣行としての自治」は、成文法規の不備を補う形で、あるいはそれを乗り越える形で、現場の力関係や学内の合意形成を通じて形成されたものであり、日本の大学における自治のあり方を特徴づける重要な要素となりました。</p>
+
+                    </div>
+
+                </div>
+
+               
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>D. 戦後日本の学部自治：憲法的基礎（学問の自由）と伝統的構造の持続</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>第二次世界大戦後、日本国憲法第23条によって「学問の自由」が保障されました。この規定は、判例や学説において、学問の自由を実質的に担保するための制度的保障として「<span class="tooltip">大学の自治<span class="tooltiptext">大学が外部からの干渉を受けずに、教育研究や運営を自律的に行うことです。</span></span><button class="kotobank-btn" data-term="大学の自治">📖 辞典で引く</button>」を含むと解釈されています。大学の自治の内容としては、主に教員の人事の自治、大学の施設および学生の管理の自治が挙げられ、その主体は教授その他の研究者であるとされています。</p>
+
+                        <p>このような憲法上の裏付けを得て、戦後も伝統的な講座制と、特に人事権を中心とする教授会の強い権限は温存されました。<span class="tooltip">教育公務員特例法<span class="tooltiptext">教育公務員の身分、服務、任免などについて定めた法律です。</span></span><button class="kotobank-btn" data-term="教育公務員特例法">📖 辞典で引く</button>においても、教員人事は「教授会の議に基づき学長が行う」と規定され、多くの学説がこれを教授会の実質的決定権限を認めるものと解釈してきました。戦前の慣行として確立された教授会の人事における優越的地位が、戦後の新たな憲法体制下で追認され、さらに強化された形となりました。これにより、学問の自由という普遍的な理念が、日本の大学においては、講座制と教授会自治という具体的な制度的形態と強く結びついて理解されるようになりました。しかし、この強固な学部・教授会中心の自治は、大学全体の意思決定や戦略的な運営という観点からは、時に機能不全や非効率性を招く要因ともなり得ました。各学部が独立した「城」のようになり、大学全体の改革や資源の再配分が困難になるという課題は、この時期に既に潜在していたと言えるでしょう。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>E. 現代の力学：自治と説明責任、ガバナンス近代化の狭間で</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>大学の自治は絶対的なものではなく、社会との関係性の中でその範囲やあり方が問われます。その一例が、1963年の最高裁判決が出された<span class="tooltip">東大ポポロ事件<span class="tooltiptext">学生の演劇活動への警察官の立ち入りが大学の自治を侵害するかが争われた事件です。</span></span><button class="kotobank-btn" data-term="ポポロ事件">📖 辞典で引く</button>です。この事件では、学生の演劇活動に対して警察官が立ち入ったことが大学の自治を侵害するかが争われました。最高裁は、大学の自治は主として教授その他の研究者の人事、施設・学生管理について認められるとしつつ、学生の集会であっても、真に学問的な研究・発表ではなく「実社会の政治的社会的活動」と見なされる場合には、大学の特別な学問の自由と自治は享有しないと判断しました。また、<span class="tooltip">学生の学問の自由<span class="tooltiptext">学生が学問研究や学習を行う自由のことです。</span></span><button class="gemini-explain-btn" data-term="学生の学問の自由">✨ AIで解説</button>は、教授らの特別な学問の自由と自治の効果として認められる側面があるとされました。この判決は、大学の自治の範囲に一定の限界を示し、特に学生の政治活動と学問の自由との線引きについて、後々まで影響を与えるものとなりました。</p>
+
+                        <p>20世紀末から21世紀にかけて、大学に対する社会からの要求が変化し、効率性や説明責任、国際競争力強化の必要性が叫ばれるようになると、伝統的な学部自治のあり方、特に教授会の権限のあり方が改革の対象となりました。1999年の国立学校設置法改正や、2014年の<span class="tooltip">学校教育法<span class="tooltiptext">日本の学校教育制度の基本を定める法律です。</span></span><button class="kotobank-btn" data-term="学校教育法">📖 辞典で引く</button>改正などは、<span class="tooltip">学長<span class="tooltiptext">大学の最高責任者のことです。</span></span><button class="kotobank-btn" data-term="学長">📖 辞典で引く</button>のリーダーシップを強化し、意思決定を迅速化することを目的として、教授会の権限を見直す方向性を示しました。例えば2014年の改正では、学長の決定が教授会の判断に拘束される仕組みは「<span class="tooltip">権限と責任の不一致<span class="tooltiptext">権限を持つ者と責任を負う者が一致していない状態のことです。ガバナンス上の問題とされます。</span></span><button class="gemini-explain-btn" data-term="権限と責任の不一致">✨ AIで解説</button>」を生じさせると指摘され、教授会は教育研究に関する事項の「審議機関」であり、学長等に対し「意見を述べる」関係にあるとされました。</p>
+
+                        <p>これらの改革は、歴史的に強固であった教授会中心の学部自治から、学長を中心とする大学執行部への権限集中を目指すものであり、日本の大学ガバナンスにおける大きな転換点と言えます。しかし、これは長年にわたる伝統や慣行との間に緊張関係を生み出しています。学問の自由を守るための砦としての学部自治の意義と、社会の変化に対応するための効率的で戦略的な大学運営の必要性との間で、どのようにバランスを取るかが、現代日本の大学が直面する中心的な課題の一つです。この課題は、単なる制度設計の問題ではなく、大学の使命や学者の役割に関する根本的な問いかけを伴う、文化的な変容の過程でもあります。</p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="section3" class="content-section">
+
+                <div class="flex justify-between items-center mb-4">
+
+                    <h2>III. 大学ガバナンスと学部自治に関する国際比較</h2>
+
+                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
+
+                </div>
+
+                <p class="text-lg text-gray-600 mb-6">本章では、日本の大学制度を、北米（主にアメリカ）およびドイツの大学制度と比較検討します。それぞれのガバナンス構造、学部自治のあり方、歴史的背景などを対比することで、日本特有の特徴を浮き彫りにします。</p>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>A. 北米モデル（主にアメリカ）：<span class="tooltip">シェアード・ガバナンス<span class="tooltiptext">理事会、大学執行部、教授会（教員組織）の三者が、それぞれ異なる役割を担いつつ大学運営に関与する体制です。共同統治とも言います。</span></span><button class="kotobank-btn" data-term="シェアード・ガバナンス">📖 辞典で引く</button></h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <h4>1. 歴史的背景：AAUPと学問の自由・テニュア制度の発展</h4>
+
+                        <p>アメリカにおける学問の自由と大学の自治の概念は、最初から確立されていたわけではなく、特に大学の初期の発展期において、資金提供者であり大学理事でもあった産業資本家からの干渉との闘いを通じて形成されてきました。このような背景のもと、1915年に設立された<span class="tooltip">アメリカ大学教授協会（AAUP）<span class="tooltiptext">米国の大学教員の権利擁護団体です。学問の自由やテニュア制度の基準確立に貢献しました。</span></span><button class="kotobank-btn" data-term="AAUP">📖 辞典で引く</button>は、学問の自由と<span class="tooltip">テニュア<span class="tooltiptext">終身在職権のことです。不当な解雇からの保護を通じて学問の自由を保障することを目的とします。</span></span><button class="kotobank-btn" data-term="テニュア">📖 辞典で引く</button>（終身在職権）を擁護し、その基準を確立する上で極めて重要な役割を果たしました。</p>
+
+                        <p>AAUPが採択した1915年の「基本原則の宣言」や1940年の「学問の自由とテニュアに関する基本原則」は、今日においても学問の自由に関する議論の基礎となる文書です。これらの原則は、研究およびその結果の公表における自由、教室における教授の自由、そして市民としての言論の自由を保障し、テニュアをこれらの自由と経済的安定を確保するための主要な手段と位置づけています。アメリカでは、学問の自由と大学の自治が、教員組織自身の主体的な活動によって定義され、守られてきた歴史があります。これは、国家が大学制度の枠組みを主導的に形成してきた初期の日本とは対照的であり、自治の概念の出自の違いが、その後の両国の大学における自治のあり方に影響を与えた可能性があります。</p>
+
+                        <h4>2. ガバナンス構造：理事会、大学執行部、教授会の役割</h4>
+
+                        <p>アメリカの大学ガバナンスは、しばしば「シェアード・ガバナンス（共同統治）」という言葉で特徴づけられます。これは主に、<span class="tooltip">理事会<span class="tooltiptext">大学の最高意思決定機関の一つです。財産管理や学長選任などの権限を持ちます。</span></span><button class="kotobank-btn" data-term="理事会">📖 辞典で引く</button>（Board of Trustees/Regents）、大学執行部（学長、<span class="tooltip">プロヴォスト<span class="tooltiptext">米国の大学における上級管理職で、主に教学担当の副学長を指します。</span></span><button class="gemini-explain-btn" data-term="プロヴォスト">✨ AIで解説</button>、学部長など）、そして教授会（Faculty Senateなど教員組織）の三者が、それぞれ異なる役割を担いつつ、大学運営に関与する体制を指します。</p>
+
+                        <p>理事会は、大学外部の一般市民（<span class="tooltip">レイ・メンバー<span class="tooltiptext">専門家ではない一般市民の理事のことです。</span></span><button class="gemini-explain-btn" data-term="レイ・メンバー">✨ AIで解説</button>）で構成されることが多く、大学の最終的な法的責任と財産管理責任を負います。「市民による統治」という理念に基づき、「統治はするが、経営管理はしない」という原則の下で運営されます。学長を中心とする大学執行部は、理事会から権限を委譲され、日常的な大学経営と政策実行を担います。一方、教授会は、<span class="tooltip">カリキュラム<span class="tooltiptext">教育課程のことです。教育目標達成のための計画を指します。</span></span><button class="kotobank-btn" data-term="カリキュラム">📖 辞典で引く</button>、教育内容、学位授与基準といった教学に関する事項について主要な責任を持ち、人事や予算など他の領域においても重要な諮問的役割を果たすことが多いです。</p>
+
+                        <p>この三者間の権力分担と協力関係は、理想的には大学の健全な運営に資しますが、現実には各主体の利害や優先順位が衝突することもあり、緊張関係をはらみます。例えば、カリフォルニア大学では、学科が有効な意思決定ができないと見なされた場合、自治権が剥奪されることもあるとされ、教員自治が無条件に保証されるわけではないことが示されています。また、バージニア大学で2012年に起きた学長解任騒動は、理事会と教員の間の深刻な対立を露呈しました。シェアード・ガバナンスは、固定的な制度というよりは、常に動的な交渉と力関係の調整が行われるプロセスと言えるでしょう。</p>
+
+                        <h4>3. 学部自治の性格：範囲、条件、テニュア制度</h4>
+
+                        <p>アメリカにおける教員の学問的自律性は、テニュア制度と密接に結びついています。試用期間を経て付与されるテニュアは、不当な解雇からの保護を通じて学問の自由を保障することを目的としています。</p>
+
+                        <p>教員の権限が最も強いのは、カリキュラム、教育方法、研究活動といった教学分野です。教員人事（採用、昇進、テニュア付与）に関しては、通常、教員委員会が詳細な審査を行い勧告を出しますが、最終的な決定権は大学執行部や理事会にあることが多いです。ただし、教員の専門的判断は非常に重視されます。アメリカの大学教員は流動性が高く、テニュア取得後も他の大学へ移籍することが少なくありません。</p>
+
+                        <p>日本の伝統的な学部教授会が人事に強い決定権を持っていた（近年の改革以前）ことと比較すると、アメリカのシステムは、教員の専門的意見を尊重しつつも、最終決定権を大学執行部や理事会が保持するという点で、より「シェアード」な性格が強いと言えます。テニュアは個々の教員の学問の自由を強力に保障しますが、組織としての学部や学科の自治権が、日本の伝統的な学部自治ほど人事に直接的な最終決定力を持つわけではありません。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>B. ドイツモデル：<span class="tooltip">フンボルト理念<span class="tooltiptext">ヴィルヘルム・フォン・フンボルトが提唱した大学理念です。研究と教育の統一、学問の自由（学ぶ自由・教える自由）を中核とします。</span></span><button class="kotobank-btn" data-term="フンボルト理念">📖 辞典で引く</button>とその実践的展開</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <h4>1. 中核理念：「学問の自由」と大学の自治</h4>
+
+                        <p>ドイツの大学モデルは、ヴィルヘルム・フォン・フンボルトが提唱した理念に深く影響されています。その中核は、研究と教育の統一（<span class="tooltip">$Einheit \ von \ Forschung \ und \ Lehre$<span class="tooltiptext">ドイツ語で「研究と教育の統一」を意味し、フンボルト理念の核心です。</span></span><button class="gemini-explain-btn" data-term="Einheit von Forschung und Lehre">✨ AIで解説</button>）、そして学問の自由（$Freiheit \ der \ Wissenschaft$：学生にとっては<span class="tooltip">$Lernfreiheit$<span class="tooltiptext">ドイツ語で「学ぶ自由」を意味します。</span></span><button class="gemini-explain-btn" data-term="Lernfreiheit">✨ AIで解説</button>（学ぶ自由）、教授にとっては<span class="tooltip">$Lehrfreiheit$<span class="tooltiptext">ドイツ語で「教える自由」を意味します。</span></span><button class="gemini-explain-btn" data-term="Lehrfreiheit">✨ AIで解説</button>（教える自由））です。フンボルトは、大学が国家や経済界からの直接的な干渉から独立し、純粋に知識を探求する場であるべきだと主張しました。その理想においては、学生も研究プロセスに参加し、教員と学生は「知識の前では同格」であるとされました。</p>
+
+                        <p>しかし、このフンボルト理念の解釈と実践は一筋縄ではいきません。フンボルト自身、大学の完全な自治を主張しつつも、教授選考に関しては、縁故主義を防ぐために国家の関与をむしろ肯定的に捉えていた側面があります。これは、理想としての大学の自由と、現実的な大学運営における質保証という、二つの要請の間にある初期の緊張関係を示しています。フンボルト理念が、しばしば純粋な大学自治の象徴として語られることとは裏腹に、その起源において既に国家との複雑な関係性を内包していた点は重要です。</p>
+
+                        <h4>2. 教授選考：国家の関与と大学の権限の歴史</h4>
+
+                        <p>19世紀以前のドイツでは、大学の教授会が教授選考の自治権を持っていましたが、これが縁故採用や情実人事、さらには贈収賄の温床となり、大学の質を著しく低下させる事態を招きました。この危機的状況に対し、フンボルトの考え方を反映した改革が行われ、教授任命権は国家（文部省）に大きく移管されました。大学（学部教授会）は通常3名の候補者リストを推薦しますが、文部大臣はこれに拘束されず、リスト外の人物を任命することも可能でした。これは、国家と大学による「<span class="tooltip">共同選考方式<span class="tooltiptext">ドイツの伝統的な教授選考方式で、大学が推薦し、国家が任命する形式です。</span></span><button class="gemini-explain-btn" data-term="共同選考方式">✨ AIで解説</button>」であり、両者の間には常に緊張関係が存在しました。</p>
+
+                        <p>近年、一部の州ではこの伝統的な方式が改革され、教授任命の最終決定権を文部大臣から個々の大学（多くは学長を中心とする大学執行部）へ移譲する動きが見られます。これは、大学の自主性と国際競争力を高めることを目的としたものであり、ある意味では「フンボルト以前」の大学の自治権回復とも言えますが、同時にかつての弊害を繰り返さないための新たな説明責任とガバナンス体制が求められます。ドイツの教授選考の歴史は、学問的自律性と質の維持、そして国家の役割をめぐる、弁証法的な発展の過程を示していると言えるでしょう。</p>
+
+                        <h4>3. ドイツ大学ガバナンスにおける教員の影響力</h4>
+
+                        <p>歴史的に国家が教授任命に強い権限を持っていた一方で、ドイツの教授（特に正教授・講座主任教授）は、自身の講座における研究と教育に関して伝統的に大きな自由と独立性を享受してきました。1960年代の大学紛争以降、多くの州で大学法が改正され、若手教員や学生も大学運営に参加する道が開かれました。1976年には<span class="tooltip">連邦大学大綱法<span class="tooltiptext">旧西ドイツの大学制度の一般原則を定めた法律です。</span></span><button class="gemini-explain-btn" data-term="連邦大学大綱法">✨ AIで解説</button>が制定され、大学制度の一般原則が示されました。</p>
+
+                        <p>現代のドイツの大学ガバナンスは、学部、大学中央執行部（学長・総長室）、そして州の文部省がそれぞれに関与する複雑な構造を持ちます。教員は各種評議会や委員会を通じて意思決定に参加しますが、その権限のバランスは州や大学によって異なります。フンボルト理念における個々の教授の自由という理想は、マス高等教育化と社会からの説明責任要求の高まりの中で、より組織的で参加型のガバナンスモデルへと変容し、近年ではさらに大学全体の戦略的運営を担う中央執行部の権限強化という方向に進んでいます。</p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="section4" class="content-section">
+
+                <div class="flex justify-between items-center mb-4">
+
+                    <h2>IV. 総合的分析：比較の視座から見た日本システムの独自性</h2>
+
+                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
+
+                </div>
+
+                <p class="text-lg text-gray-600 mb-6">本章では、これまでの歴史的概観と比較検討を踏まえ、日本の大学制度、特に学部自治のあり方について、その独自性を分析します。</p>
+
+               
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>A. 相違点の明確化：日本の学部自治とガバナンスの比較</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>日本の大学における学部自治、特に教授会による人事権の強さは、アメリカやドイツの伝統的なモデルと比較して際立った特徴を持っています。アメリカでは、教員人事のプロセスは「シェアード」であり、教員委員会の推薦を基に大学執行部や理事会が最終決定権を持ちます。ドイツでは、歴史的に国家（文部省）が教授任命の最終権限を握り、大学の推薦に拘束されませんでした。これに対し、日本の帝国大学以来の伝統では、学部教授会が教員人事に事実上の決定権を持ち、これは「慣行」として確立され、戦後の憲法下でも長く維持されてきました。この学部レベルでの強力な人事権は、日本の学部自治を他国と比較して非常に強固なものとしましたが、同時に大学全体の戦略的人事や学際的な取り組みを困難にする要因ともなり得ました。</p>
+
+                        <p>また、大学の自治の所在という点でも違いが見られます。日本では、自治の単位が伝統的に学部（教授会）に強く置かれてきました。アメリカでは理事会、大学執行部、教授会による「シェアード・ガバナンス」が基本であり、ドイツでは個々の教授の学問の自由が尊重される一方で、大学運営には国家も深く関与してきました。</p>
+
+                        <p>外部からのガバナンスという点では、アメリカにおける強力な権限を持つ独立した理事会（レイ・ボード）の伝統は、日本では希薄でした。日本の国立大学においては、主たる外部のカウンターパートは<span class="tooltip">文部科学省<span class="tooltiptext">日本の教育、科学技術、学術、文化、スポーツなどを所管する行政機関です。</span></span><button class="kotobank-btn" data-term="文部科学省">📖 辞典で引く</button>であり、国家との直接的な関係性が大学運営に大きな影響を与えてきました。2004年の<span class="tooltip">国立大学法人化<span class="tooltiptext">国立大学が国から独立した法人格を持つ組織に移行した改革です。</span></span><button class="kotobank-btn" data-term="国立大学法人化">📖 辞典で引く</button>以降、経営協議会などに外部委員が導入されましたが、その権限や機能はアメリカの理事会とは異なると言えます。</p>
+
+                        <p>これらの比較から、日本の学部自治は、特に人事面において、学部という単位で非常に強い自律性を有してきた点が特徴的です。しかし、それは大学全体のガバナンスという観点からは、分権的過ぎるという課題を抱え、近年の改革の焦点となっています。</p>
+
+                       
+
+                        <h4 class="mt-6 mb-3">表1：大学ガバナンスと学部自治の国際比較</h4>
+
+                        <div class="table-container">
+
+                            <table class="w-full border-collapse border border-gray-300">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>特徴</th>
+
+                                        <th>日本（伝統的／近年の動向）</th>
+
+                                        <th>アメリカ（USA）</th>
+
+                                        <th>ドイツ（伝統的／近年の動向）</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    <tr>
+
+                                        <td><strong>自治の主たる所在</strong></td>
+
+                                        <td>学部／教授会（伝統的）。近年は学長執行部へ権限集中傾向です。</td>
+
+                                        <td>理事会、大学執行部、教授会によるシェアード・ガバナンスです。</td>
+
+                                        <td>個々の教授（研究・教育）。国家（州文部省）も重要です。近年は大学執行部の権限強化傾向です。</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td><strong>教授任命プロセス</strong></td>
+
+                                        <td>教授会が事実上の決定権（伝統的）。近年は学長の関与強化です。</td>
+
+                                        <td>教員委員会が推薦、大学執行部／理事会が最終決定します。</td>
+
+                                        <td>国家（州文部省）が最終決定（伝統的）。近年一部州で大学が最終決定権を持つように改革されています。</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td><strong>教授会／教員評議会の役割</strong></td>
+
+                                        <td>人事・カリキュラム等に強い決定権（伝統的）。審議機関・諮問機関としての性格強化（近年）です。</td>
+
+                                        <td>教学事項（カリキュラム等）に主要な責任、人事・予算等に諮問的役割を果たします。</td>
+
+                                        <td>教授候補者リスト作成など。運営への関与は州法等によります。</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td><strong>中央執行部（学長等）の役割</strong></td>
+
+                                        <td>教授会の決定を執行（伝統的）。リーダーシップ強化、戦略的意思決定の主体へ（近年）移行しています。</td>
+
+                                        <td>大学経営の最高責任者、理事会から権限委譲されます。</td>
+
+                                        <td>大学代表、運営責任者です。州文部省との関係で権限が規定されます。近年リーダーシップ強化の傾向です。</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td><strong>外部理事会等の役割</strong></td>
+
+                                        <td>希薄（伝統的）。国立大学法人化で経営協議会に外部委員導入。私学は理事会があります。</td>
+
+                                        <td>強力な権限を持つレイ・ボード（理事会）が最終責任を負います。</td>
+
+                                        <td>州文部省が監督します。近年、一部で外部有識者を含む大学評議会等の設置も見られます。</td>
+
+                                    </tr>
+
+                                    <tr>
+
+                                        <td><strong>学問の自由／自治の根拠</strong></td>
+
+                                        <td>憲法23条、慣行、教育公務員特例法等です。</td>
+
+                                        <td>憲法修正第1条（間接的）、AAUP等の専門職団体基準、判例、慣行です。</td>
+
+                                        <td>基本法（憲法）、州大学法、フンボルト理念の伝統です。</td>
+
+                                    </tr>
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>B. 影響の軌跡：国際的モデルの日本における受容と変容</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>日本の大学制度は、その成立と発展の過程で、常に海外のモデルを意識し、取り入れてきました。明治初期には、ドイツの大学、特にその研究重視の姿勢や講座制が帝国大学のモデルの一つとなりました。戦後改革においては、アメリカの4年制大学システム、一般教育、そして学問の自由という理念が導入されました。近年のガバナンス改革に見られる学長リーダーシップの強化や説明責任の重視といった動向も、欧米の高等教育改革（<span class="tooltip">新公共経営論的アプローチ<span class="tooltiptext">行政に市場原理や民間企業経営の手法を導入する考え方です。</span></span><button class="gemini-explain-btn" data-term="新公共経営論的アプローチ">✨ AIで解説</button>など）と軌を一にする部分があります。</p>
+
+                        <p>しかし、これらの外来モデルは、日本にそのまま移植されたわけではありません。常に日本の既存の制度、文化、政治的文脈の中で解釈され、変容を伴いながら受容されてきました。例えば、戦後にアメリカ型の大学制度が導入された後も、戦前からの講座制や教授会の強い権限といった伝統は根強く残り、アメリカの制度と日本の伝統が融合した独特のシステムが形成されました。この「選択的受容」と「<span class="tooltip">土着化<span class="tooltiptext">外来の文化や制度が、現地の文化や慣習に合わせて変容し、定着することです。</span></span><button class="gemini-explain-btn" data-term="土着化">✨ AIで解説</button>」のプロセスは、日本の大学制度の独自性を理解する上で不可欠な視点です。単にどの国のモデルに影響されたかというだけでなく、それがどのように日本的な文脈で再解釈され、実践されたのかを問う必要があります。</p>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="collapsible">
+
+                    <div class="collapsible-header">
+
+                        <h3>C. 日本の大学ガバナンスにおける持続的特徴と現代的課題</h3>
+
+                        <span>▲</span>
+
+                    </div>
+
+                    <div class="collapsible-content">
+
+                        <p>日本の大学ガバナンスには、講座制の遺産（変容しつつも）、歴史的に強力であった学部レベルの意思決定（特に教授会）、そして中央政府（文部科学省）との密接かつ変化し続ける関係性といった、いくつかの持続的な特徴が見られます。</p>
+
+                        <p>現代における課題は多岐にわたります。強固な機関としてのリーダーシップと戦略的経営の必要性と、伝統的な学部自治および学問の自由との間のバランスをいかに取るか。少子化が進む中での高等教育の質の保証と社会への適合性。そして、財政的制約の中でいかにイノベーションを促進し、国際競争力を高めるか。特に、伝統的に強かった教授会の権限と、改革によって強化されつつある学長・執行部のリーダーシップとの間の緊張関係は、依然として日本の大学ガバナンスにおける核心的な論点の一つです。</p>
+
+                        <p>この中心的な課題は、自治の所在を従来の学部・学科レベル（多くは専門分野の保護に焦点が当てられていた）から、より大きな機関としての一貫性と中央からの戦略的指示、そして外部の利害関係者への説明責任が求められるシステムへと移行させる中で、いかにして学部自治が本来保護すべき学問の自由と自発性を損なわないようにするか、という点に集約されます。これは単なる管理構造の再編ではなく、大学における「自治」の理解と実践そのものを根本から問い直す、困難な調整作業です。リーダーシップ強化を目的とした改革が、慎重に実施されなければ、それが向上させようとしている学術的な活力をかえって削いでしまう危険性もはらんでいます。</p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="section5" class="content-section">
+
+                 <div class="flex justify-between items-center mb-4">
+
+                    <h2>V. 結論：歴史的道程の省察と将来展望</h2>
+
+                    <button class="gemini-summary-btn">このセクションを要約 ✨</button>
+
+                </div>
+
+                <p class="text-lg text-gray-600 mb-6">日本の大学制度は、明治期の国家主導による設立から、戦後のアメリカ型システムへの大規模な転換、そして近年のグローバル化と社会の要請に応じたガバナンス改革に至るまで、絶えざる変容の過程を歩んできました。その中で、学部自治、特に教授会を中心とする自治のあり方は、日本の大学の独自性を象徴する要素の一つとして、その形態を変えながらも重要な役割を果たし続けてきました。</p>
+
+                <p>帝国大学令下で萌芽し、慣行として人事権を確立した学部自治は、戦後、憲法上の学問の自由という理念的支柱を得て、講座制とともに日本の大学における研究教育の基盤となりました。しかし、この学部レベルでの強い自治は、時に大学全体の戦略的運営や迅速な意思決定を阻害する要因ともなり、21世紀に入ると学長リーダーシップ強化を企図したガバナンス改革の対象となりました。</p>
+
+                <p>アメリカのシェアード・ガバナンスやドイツのフンボルト理念と国家の関与の歴史と比較すると、日本の学部自治は、特に人事における教授会の伝統的な権限の強さにおいて際立っています。また、外来モデルを積極的に導入しつつも、それを国内の文脈で変容させ、独自のハイブリッドなシステムを形成してきた点も日本の特徴と言えます。</p>
+
+                <p>現在、日本の大学は、伝統的な学部自治の精神を活かしつつ、いかにして社会からの期待に応え、国際的な競争の中で発展していくかという大きな課題に直面しています。学長のリーダーシップ強化と学部・教員の自律性との適切なバランス、そして真の学問の自由を保障するための制度設計は、今後も継続的な模索が求められるでしょう。日本の大学制度の歴史は、伝統、外来モデル、そして内発的な改革努力が織りなす複雑なタペストリーであり、その進化は今も続いています。この歴史的道程を深く理解することは、日本の高等教育の未来を構想する上で不可欠な作業と言えるでしょう。</p>
+
+            </div>
+
+        </main>
+
+    </div>
+
+
+
+    <div id="geminiModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 100;">
+
+      <div class="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+
+        <div class="mt-3">
+
+          <div class="flex justify-between items-center mb-3">
+
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="geminiModalTitle">✨ AIによる解説</h3>
+
+            <button id="closeGeminiModalX" class="text-gray-400 hover:text-gray-600">
+
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+
+            </button>
+
+          </div>
+
+          <div class="mt-2 px-7 py-3 max-h-[60vh] overflow-y-auto">
+
+            <div id="geminiModalContent" class="text-sm text-gray-700 text-left">読み込み中...</div>
+
+          </div>
+
+          <div class="items-center px-4 py-3 border-t mt-4">
+
+            <button id="closeGeminiModal" class="px-4 py-2 bg-sky-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-300">
+
+              閉じる
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+<script>
+        // ----------------------------------------------------------------------
+        // Firebase SDK の読み込みと初期化 (ここから追加)
+        // ----------------------------------------------------------------------
+        // これらのスクリプトタグは、実際にはHTMLの<head>内か、</body>の直前に配置することを推奨します。
+        // ここでは簡略化のため、既存の<script>タグの先頭に書く形で案内しますが、
+        // もし別途 <script src="..."></script> タグでFirebase SDKを読み込む場合は、
+        // この部分は不要になり、下の firebase.initializeApp の部分だけが必要になります。
+        // 今回は、HTML内に直接記述する方法で進めます。
+
+        // Firebase SDKのスクリプトを動的に読み込む (もしHTMLに直接<script src="...">タグを書いていない場合)
+        function loadFirebaseSDK() {
+            return new Promise((resolve, reject) => {
+                const appScript = document.createElement('script');
+                appScript.src = "https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"; // バージョンは適宜最新を確認
+                appScript.onload = () => {
+                    const functionsScript = document.createElement('script');
+                    functionsScript.src = "https://www.gstatic.com/firebasejs/9.22.1/firebase-functions-compat.js";
+                    functionsScript.onload = resolve;
+                    functionsScript.onerror = reject;
+                    document.head.appendChild(functionsScript);
+                };
+                appScript.onerror = reject;
+                document.head.appendChild(appScript);
+            });
+        }
+
+        // Firebaseプロジェクトの設定 (Firebaseコンソールのプロジェクト設定から取得)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAMF4zZMJ05IYUXQj4goQKlXhgK0thQrBM", // Firebaseプロジェクト設定 > 全般 > マイアプリ > SDK の設定と構成 で確認
+            authDomain: "tc-exam-be1c2.firebaseapp.com", // YOUR_PROJECT_ID.firebaseapp.com
+            projectId: "tc-exam-be1c2", // あなたのプロジェクトID
+            storageBucket: "tc-exam-be1c2.appspot.com", // YOUR_PROJECT_ID.appspot.com
+            messagingSenderId: "152220043021", // Firebaseプロジェクト設定から
+            appId: "1:152220043021:web:87051a39f931e781fe1244" // Firebaseプロジェクト設定から
+        };
+
+        let functions; // Firebase Functionsのインスタンスを格納
+
+        // Firebaseの初期化とFunctionsインスタンスの取得
+        async function initializeFirebase() {
+            try {
+                await loadFirebaseSDK();
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                functions = firebase.functions();
+                // リージョンを指定する場合 (例: 'us-central1' 以外の場合)
+                // functions = firebase.app().functions('your-function-region');
+                console.log("Firebase initialized and Functions ready.");
+            } catch (error) {
+                console.error("Firebase SDKの読み込みまたは初期化に失敗しました:", error);
+                // モーダルやUIにエラーを表示する処理をここに追加することも検討
+                geminiModalContent.textContent = `Firebaseの初期化に失敗しました: ${error.message}。アプリが正しく動作しない可能性があります。`;
+                geminiModalTitle.textContent = '初期化エラー';
+                geminiModal.style.display = 'flex';
+            }
+        }
+
+        // ----------------------------------------------------------------------
+        // (ここまで追加)
+        // ----------------------------------------------------------------------
+
         const navLinks = document.querySelectorAll('.nav-link');
         const contentSections = document.querySelectorAll('.content-section');
-        const timelineCards = document.querySelectorAll('.timeline-card'); 
+        const timelineCards = document.querySelectorAll('.timeline-card');
         const timelineDescriptionArea = document.getElementById('timeline-description-area');
         const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
-        
+
         const geminiModal = document.getElementById('geminiModal');
         const geminiModalTitle = document.getElementById('geminiModalTitle');
         const geminiModalContent = document.getElementById('geminiModalContent');
         const closeGeminiModalButton = document.getElementById('closeGeminiModal');
         const closeGeminiModalXButton = document.getElementById('closeGeminiModalX');
 
-        const KOTOBANK_TARGET_TERMS = [ 
+        const KOTOBANK_TARGET_TERMS = [
             "帝国大学令", "大学令", "新制大学", "大学設置基準", "国立大学法人化",
             "講座制", "学部自治", "教授会", "学問の自由", "シェアード・ガバナンス",
             "テニュア", "フンボルト理念", "一般教育", "教養科目", "リベラルアーツ",
-            "帝国大学", "私立大学", "旧制高等学校", "専門学校 (旧制)", "師範学校", 
+            "帝国大学", "私立大学", "旧制高等学校", "専門学校 (旧制)", "師範学校",
             "大学院", "学位", "文部科学省", "中央教育審議会", "認証評価制度",
             "シラバス", "カリキュラム", "単位制", "学長", "理事会", "評議会",
             "学生自治", "ポポロ事件", "教育改革", "大学の自治", "教育公務員特例法", "学校教育法",
             "AAUP"
         ];
 
-        const timelineEventDetails = { 
+        const timelineEventDetails = {
             event1: "<strong>1886年 帝国大学令公布:</strong> 国家の要請に応える学術技芸の教授と研究を目的とし、日本の大学制度の基礎を築きました。講座制が導入され、実学が重視されました。これは、大学が国家発展のための機関として位置づけられたことを示しています。",
             event2: "<strong>1918年 大学令公布:</strong> 帝国大学以外の私立学校なども「大学」として認可される道が開かれ、高等教育の裾野が拡大しました。多様な教育機関の出現を促しましたが、国家の統制は依然として強いままでした。",
             event3: "<strong>1949年 教育改革 (新制大学):</strong> 戦後のGHQ指導の改革により、複線的な高等教育機関が4年制大学に一本化されました。「一県一大学構想」や一般教育の導入など、アメリカの大学システムの影響を強く受け、教育の機会均等が図られました。",
@@ -633,13 +1282,13 @@
                 window.scrollTo(0,0);
             });
         });
-        
+
         window.addEventListener('popstate', () => {
             const currentHash = window.location.hash || '#section1';
             showSection(currentHash);
         });
 
-        timelineCards.forEach(card => { 
+        timelineCards.forEach(card => {
             card.addEventListener('click', () => {
                 const eventKey = card.dataset.event;
                 timelineDescriptionArea.innerHTML = timelineEventDetails[eventKey] || "<p>詳細情報はありません。</p>";
@@ -652,8 +1301,8 @@
         collapsibleHeaders.forEach(header => {
             const content = header.nextElementSibling;
             const icon = header.querySelector('span');
-            content.style.display = "block"; 
-            icon.textContent = '▲'; 
+            content.style.display = "block";
+            icon.textContent = '▲';
 
             header.addEventListener('click', () => {
                 const isOpening = content.style.display !== "block";
@@ -661,76 +1310,61 @@
                 icon.textContent = isOpening ? '▲' : '▼';
             });
         });
-        
+
+        async function callFirebaseGeminiFunction(promptText) {
+            if (!functions) {
+                console.error("Firebase Functions is not initialized yet.");
+                return "Firebase Functionsの準備ができていません。しばらくしてから再度お試しください。";
+            }
+            try {
+                const callGemini = functions.httpsCallable('callGemini'); // Firebase Function名
+                const result = await callGemini({ prompt: promptText });
+                if (result.data && result.data.result) {
+                    return result.data.result;
+                } else {
+                    throw new Error("AIからの予期しない応答形式です。 (result.data.result is missing)");
+                }
+            } catch (error) {
+                console.error('Firebase Function (callGemini) Error:', error);
+                let errorMessage = `Firebase Functionの呼び出し中にエラーが発生しました: ${error.message}`;
+                if (error.details) {
+                    errorMessage += ` Details: ${JSON.stringify(error.details)}`;
+                }
+                return errorMessage;
+            }
+        }
+
         async function callGeminiApiForExplanation(term, contextText = "") {
             geminiModalTitle.textContent = `✨ 「${term}」のAI解説`;
             geminiModalContent.innerHTML = '<p class="text-center text-gray-500">AIが応答を生成中です。少々お待ちください...</p><div class="flex justify-center items-center mt-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div></div>';
             geminiModal.style.display = 'flex';
-            
+
             const prompt = `あなたは日本の大学史の専門家です。日本の大学制度の文脈において、以下の用語について200字以内で詳しく、しかし一般の読者にも分かりやすく解説してください。必要であれば、提供された周辺テキストを参考にしてください。解説は日本語で、ですます調でお願いします。\n\n用語: ${term}\n\n周辺テキスト (参考):\n${contextText}`;
             
-            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-            const payload = { contents: chatHistory };
-            const apiKey = ""; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`APIリクエストエラー: ${response.status}`);
-                const result = await response.json();
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts) {
-                    geminiModalContent.innerHTML = `<p class="text-left whitespace-pre-wrap">${result.candidates[0].content.parts[0].text}</p>`;
-                } else {
-                    throw new Error("AIからの予期しない応答形式です。");
-                }
-            } catch (error) {
-                console.error('Gemini API Error:', error);
-                geminiModalContent.textContent = `エラーが発生しました: ${error.message}`;
-            }
+            // Firebase Functionを呼び出す
+            const explanation = await callFirebaseGeminiFunction(prompt);
+            geminiModalContent.innerHTML = `<p class="text-left whitespace-pre-wrap">${explanation}</p>`;
         }
-        
+
         async function callGeminiApiForSummary(textToSummarize, sectionTitle) {
-             geminiModalTitle.textContent = `✨ 「${sectionTitle}」のAI要約`;
+            geminiModalTitle.textContent = `✨ 「${sectionTitle}」のAI要約`;
             geminiModalContent.innerHTML = '<p class="text-center text-gray-500">AIが応答を生成中です。少々お待ちください...</p><div class="flex justify-center items-center mt-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div></div>';
             geminiModal.style.display = 'flex';
 
-            const MAX_PROMPT_LENGTH = 7000; 
+            const MAX_PROMPT_LENGTH = 7000; // これはフロントエンドの制御。バックエンドでも制限がある可能性に注意
             if (textToSummarize.length > MAX_PROMPT_LENGTH) {
                 textToSummarize = textToSummarize.substring(0, MAX_PROMPT_LENGTH) + "... (一部抜粋)";
             }
             if (!textToSummarize) {
-                 geminiModalContent.textContent = "要約するテキストが見つかりませんでした。";
-                 return;
+                geminiModalContent.textContent = "要約するテキストが見つかりませんでした。";
+                return;
             }
-            
+
             const prompt = `あなたは学術アシスタントです。以下の日本の大学制度に関するテキストを要約してください。主要な論点と歴史的展開に焦点を当ててください。要約は日本語で、簡潔に300字以内で、ですます調でお願いします。\n\nテキスト:\n${textToSummarize}`;
             
-            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-            const payload = { contents: chatHistory };
-            const apiKey = ""; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`APIリクエストエラー: ${response.status}`);
-                const result = await response.json();
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts) {
-                     geminiModalContent.innerHTML = `<p class="text-left whitespace-pre-wrap">${result.candidates[0].content.parts[0].text}</p>`;
-                } else {
-                    throw new Error("AIからの予期しない応答形式です。");
-                }
-            } catch (error) {
-                console.error('Gemini API Error:', error);
-                geminiModalContent.textContent = `エラーが発生しました: ${error.message}`;
-            }
+            // Firebase Functionを呼び出す
+            const summary = await callFirebaseGeminiFunction(prompt);
+            geminiModalContent.innerHTML = `<p class="text-left whitespace-pre-wrap">${summary}</p>`;
         }
 
 
@@ -739,11 +1373,11 @@
                 const section = button.closest('.content-section');
                 const sectionTitleElement = section.querySelector('h2');
                 const sectionTitle = sectionTitleElement ? sectionTitleElement.textContent : "選択されたセクション";
-                
+
                 let textToSummarize = Array.from(section.querySelectorAll('p, h3, h4, li, td, .collapsible-content p'))
-                                        .map(el => el.textContent.trim())
-                                        .filter(text => text.length > 10) 
-                                        .join("\n");
+                    .map(el => el.textContent.trim())
+                    .filter(text => text.length > 10)
+                    .join("\n");
                 await callGeminiApiForSummary(textToSummarize, sectionTitle);
             });
         });
@@ -753,7 +1387,7 @@
                 const term = button.dataset.term;
                 if (term) {
                     const encodedTerm = encodeURIComponent(term);
-                    const kotobankUrl = `https://kotobank.jp/word/${encodedTerm}`; 
+                    const kotobankUrl = `https://kotobank.jp/word/${encodedTerm}`;
                     window.open(kotobankUrl, '_blank');
                 }
             });
@@ -766,15 +1400,15 @@
                 const parentParagraph = button.closest('p');
                 if (parentParagraph) {
                     contextText = parentParagraph.textContent.trim();
-                    const MAX_CONTEXT_LENGTH = 500; 
+                    const MAX_CONTEXT_LENGTH = 500;
                     if (contextText.length > MAX_CONTEXT_LENGTH) {
-                         const termIndex = contextText.toLowerCase().indexOf(term.toLowerCase());
+                        const termIndex = contextText.toLowerCase().indexOf(term.toLowerCase());
                         if (termIndex !== -1) {
                             const start = Math.max(0, termIndex - MAX_CONTEXT_LENGTH / 2);
                             const end = Math.min(contextText.length, termIndex + MAX_CONTEXT_LENGTH / 2);
                             contextText = contextText.substring(start, end) + (end < contextText.length ? "..." : "");
                         } else {
-                           contextText = contextText.substring(0, MAX_CONTEXT_LENGTH) + "...";
+                            contextText = contextText.substring(0, MAX_CONTEXT_LENGTH) + "...";
                         }
                     }
                 }
@@ -792,10 +1426,18 @@
                 closeModal();
             }
         });
-        
-        const initialHash = window.location.hash || '#section1';
-        showSection(initialHash);
+
+        // Firebaseの初期化をページ読み込み時に実行
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeFirebase(); // Firebaseの初期化を待つ
+
+            // 初期表示処理
+            const initialHash = window.location.hash || '#section1';
+            showSection(initialHash);
+        });
 
     </script>
+
 </body>
+
 </html>
