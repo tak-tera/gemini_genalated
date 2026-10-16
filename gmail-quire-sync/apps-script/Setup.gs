@@ -14,11 +14,19 @@ function installTriggers() {
 /** 【手動で実行】設定がそろっているか確認し、結果をログに出す。 */
 function checkSetup() {
   const results = [];
-  ['SPREADSHEET_ID', 'QUIRE_CLIENT_ID', 'QUIRE_CLIENT_SECRET', 'SERVICE_ACCOUNT_EMAIL', 'OWNER_EMAIL', 'CHAT_SPACE']
+  ['SPREADSHEET_ID', 'QUIRE_CLIENT_ID', 'QUIRE_CLIENT_SECRET', 'CHAT_WEBHOOK_URL', 'WEBAPP_URL']
     .forEach(function (key) {
-      const ok = !!prop_(key, false) || (key === 'SERVICE_ACCOUNT_EMAIL' && !!prop_('SERVICE_ACCOUNT_KEY', false));
-      results.push((ok ? 'OK  ' : 'なし') + ' ' + key);
+      results.push((prop_(key, false) ? 'OK  ' : 'なし') + ' ' + key);
     });
+
+  const webhook = String(prop_('CHAT_WEBHOOK_URL', false) || '');
+  if (webhook && webhook.indexOf('https://chat.googleapis.com/') !== 0) {
+    results.push('NG   CHAT_WEBHOOK_URL が https://chat.googleapis.com/ で始まっていません');
+  }
+  const webapp = String(prop_('WEBAPP_URL', false) || '');
+  if (webapp && !/\/exec$/.test(webapp)) {
+    results.push('NG   WEBAPP_URL は /exec で終わる URL を入れてください');
+  }
 
   try {
     const projects = getProjects_(true);
@@ -36,19 +44,11 @@ function checkSetup() {
   } catch (e) {
     results.push('NG   Quire API: ' + e.message);
   }
-
-  try {
-    chatAccessToken_();
-    results.push('OK   Chat API のトークン');
-  } catch (e) {
-    results.push('NG   Chat API のトークン: ' + e.message);
-  }
   Logger.log(results.join('\n'));
 }
 
 /** 【手動で実行】チャットにテストメッセージを送る。 */
 function sendTestMessage() {
-  const space = prop_('CHAT_SPACE');
-  chatCreateMessage_(space, { text: 'テスト送信です。この通知が届いていれば設定は完了です。' });
-  Logger.log('送信しました: ' + space);
+  sendToChat_({ text: 'テスト送信です。この通知が届いていれば Webhook の設定は完了です。' });
+  Logger.log('送信しました。');
 }

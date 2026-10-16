@@ -1,10 +1,10 @@
-/** Google Chat に表示するカード。 */
+/** Google Chat に送るカード。Webhook のカードのボタンはリンクしか開けないので、各ボタンは Web アプリへのリンクにする。 */
 
-/** 承認依頼カード。登録先を選ぶプルダウンと「登録する」「却下」ボタンを持つ。 */
-function approvalCard_(entry, projects, selectedName) {
+function approvalCard_(entry, selectedName) {
   const widgets = [
     textWidget_('送信者', entry.sender),
     textWidget_('タスク名', entry.taskName),
+    textWidget_('登録先', selectedName),
   ];
   const due = toQuireDate_(entry.due);
   if (due) widgets.push(textWidget_('期限', due));
@@ -13,23 +13,12 @@ function approvalCard_(entry, projects, selectedName) {
   if (entry.reason) widgets.push(textWidget_('理由', entry.reason));
   if (entry.newProjectCandidate) widgets.push(textWidget_('新規プロジェクト候補', entry.newProjectCandidate));
 
-  widgets.push({
-    selectionInput: {
-      name: 'project',
-      label: '登録先',
-      type: 'DROPDOWN',
-      items: projects.map(function (p) {
-        return { text: p.name, value: p.name, selected: p.name === selectedName };
-      }),
-    },
-  });
-
-  const params = [{ key: 'messageId', value: String(entry.messageId) }];
   const buttons = [
-    { text: '登録する', type: 'FILLED', onClick: { action: { function: 'onApproveClick', parameters: params } } },
-    { text: '却下', onClick: { action: { function: 'onRejectClick', parameters: params } } },
+    linkButton_('登録する', actionUrl_('approve', entry.messageId), true),
+    linkButton_('登録先を変える', actionUrl_('choose', entry.messageId)),
+    linkButton_('却下', actionUrl_('reject', entry.messageId)),
   ];
-  if (entry.gmailUrl) buttons.push({ text: 'メールを開く', onClick: { openLink: { url: String(entry.gmailUrl) } } });
+  if (entry.gmailUrl) buttons.push(linkButton_('メールを開く', String(entry.gmailUrl)));
   widgets.push({ buttonList: { buttons: buttons } });
 
   return {
@@ -41,20 +30,10 @@ function approvalCard_(entry, projects, selectedName) {
   };
 }
 
-/** 処理後に差し替える結果カード。 */
-function resultCard_(entry, title, detail, linkUrl) {
-  const widgets = [
-    textWidget_('件名', entry.subject),
-    textWidget_('タスク名', entry.taskName),
-  ];
-  if (detail) widgets.push({ textParagraph: { text: detail } });
-  if (linkUrl) {
-    widgets.push({ buttonList: { buttons: [{ text: 'Quire で開く', onClick: { openLink: { url: linkUrl } } }] } });
-  }
-  return {
-    cardId: 'result-' + entry.messageId,
-    card: { header: { title: title }, sections: [{ widgets: widgets }] },
-  };
+function linkButton_(text, url, filled) {
+  const button = { text: text, onClick: { openLink: { url: url } } };
+  if (filled) button.type = 'FILLED';
+  return button;
 }
 
 function textWidget_(label, value) {
@@ -62,5 +41,5 @@ function textWidget_(label, value) {
 }
 
 function escapeHtml_(text) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

@@ -1,6 +1,6 @@
 /**
  * 時間主導トリガーで動く処理。
- *  - processPending: 5分ごと。承認待ちの行をチャットで確認に出す（確認オフなら直接登録）
+ *  - processPending: 5分ごと。承認待ちの行を Chat の Webhook で確認に出す（確認オフなら直接登録）
  *  - syncQuireMoves: 毎朝。Quire で移動されたタスクを調べ、送信者をルールに覚えさせる
  */
 
@@ -25,20 +25,16 @@ function processPending() {
       return;
     }
 
-    const space = prop_('CHAT_SPACE', false);
-    if (!space) {
-      throw new Error('送信先のチャットが未登録です。Google Chat でアプリにメッセージを送ってください。');
-    }
     const projects = getProjects_(true);
     pending.forEach(function (entry) {
       const selected = findProjectByName_(entry.judgedProject, projects)
         ? String(entry.judgedProject) : settings.generalProject;
       try {
-        const message = chatCreateMessage_(space, {
+        const message = sendToChat_({
           text: 'Quire 登録の確認: ' + entry.subject,
-          cardsV2: [approvalCard_(entry, projects, selected)],
+          cardsV2: [approvalCard_(entry, selected)],
         });
-        updateLog_(entry.row, { notifiedAt: now_(), chatMessage: message.name });
+        updateLog_(entry.row, { notifiedAt: now_(), chatMessage: message.name || '' });
       } catch (e) {
         Logger.log('チャット送信に失敗: ' + entry.messageId + ' ' + e.message);
       }
