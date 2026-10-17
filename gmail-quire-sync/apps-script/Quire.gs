@@ -94,7 +94,7 @@ function projectIdFromTaskUrl_(url) {
 }
 
 /**
- * 登録ログの1行を Quire に登録する。
+ * 登録ログの1行を、判定どおりの内容で Quire に登録する。
  * projectName を省略すると判定プロジェクトに入れる。
  * 戻り値: { task, project }
  */
@@ -107,25 +107,11 @@ function registerEntry_(entry, projectName) {
     throw new Error('登録先プロジェクト「' + (projectName || entry.judgedProject) + '」が振り分けルールにありません。');
   }
 
-  const body = {
-    name: clip_(entry.taskName || entry.subject || '(件名なし)', 200),
-    description: buildTaskDescription_(entry),
-  };
-  const due = toQuireDate_(entry.due);
-  if (due) body.due = due;
-  if (settings.assignees.length) body.assignees = settings.assignees;
-  if (entry.newProjectCandidate) body.tags = [settings.newProjectTag];
-
-  let task;
-  try {
-    task = quireCreateTask_(project.id, body);
-  } catch (e) {
-    if (!body.tags) throw e;
-    // タグが無いなどで失敗したときは、タグを外してタイトルに印を付けて登録する
-    delete body.tags;
-    body.name = '[' + settings.newProjectTag + '] ' + body.name;
-    task = quireCreateTask_(project.id, body);
-  }
+  const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
+    name: entry.taskName || entry.subject,
+    due: toQuireDate_(entry.due),
+    assignees: settings.assignees,
+  }), settings);
 
   const updates = {
     status: STATUS.DONE,
@@ -134,12 +120,98 @@ function registerEntry_(entry, projectName) {
     currentProject: project.name,
   };
   // 判定と違うプロジェクトを選んだら、その送信者をルールに覚えさせる
-  if (project.name !== String(entry.judgedProject) && project.name !== settings.generalProject) {
+  if (shouldLearn_(entry, [project], settings)) {
     learnSender_(entry.sender, project);
     updates.learned = true;
   }
   updateLog_(entry.row, updates);
   return { task: task, project: project };
+}
+
+/**
+ * 編集ページで直した内容で登録する。1件目は元の行を更新し、2件目以降は登録ログに行を追加する。
+ * form は validateEditForm_ を通したもの: { assignees: [...], tasks: [{ name, due, project, priority, note }] }
+ * 戻り値: { created: [{ task, project }], error: エラー文 or '' }
+ */
+function registerEditedEntry_(entry, form) {
+  const settings = getSettings_();
+  const projects = getProjects_(false);
+  const created = [];
+  let error = '';
+
+  for (let i = 0; i < form.tasks.length; i++) {
+    const t = form.tasks[i];
+    const project = findProjectByName_(t.project, projects);
+    try {
+      const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
+        name: t.name, due: t.due, priority: t.priority, note: t.note, assignees: form.assignees,
+      }), settings);
+      created.push({ task: task, project: project, form: t });
+    } catch (e) {
+      error = (i + 1) + '件目の登録に失敗しました: ' + e.message;
+      break;
+    }
+  }
+
+  const learn = created.length > 0 && shouldLearn_(entry, created.map(function (c) { return c.project; }), settings);
+  if (learn) learnSender_(entry.sender, created[0].project);
+
+  created.forEach(function (c, i) {
+    const values = {
+      taskName: c.form.name,
+      due: c.form.due,
+      status: STATUS.DONE,
+      taskUrl: safeQuireUrl_(c.task.url),
+      taskOid: c.task.oid || '',
+      currentProject: c.project.name,
+    };
+    if (learn) values.learned = true;
+    if (i === 0) {
+      updateLog_(entry.row, values);
+    } else {
+      appendLogCopy_(entry, String(entry.messageId) + '-e' + (i + 1), values);
+    }
+  });
+
+  if (error) {
+    const note = created.length ? '（' + created.length + '件は登録済み）' : '';
+    if (!created.length) updateLog_(entry.row, { status: STATUS.ERROR });
+    updateLog_(entry.row, { reason: clip_(String(entry.reason) + ' / ' + error + note, 500) });
+  }
+  return { created: created, error: error };
+}
+
+/** 判定と違う1つのプロジェクトに入れたときだけ、送信者を覚えさせる。 */
+function shouldLearn_(entry, projects, settings) {
+  const names = projects.map(function (p) { return p.name; })
+    .filter(function (n, i, a) { return a.indexOf(n) === i; });
+  return names.length === 1 && names[0] !== String(entry.judgedProject) && names[0] !== settings.generalProject;
+}
+
+/** Quire に送るタスクの中身。opts: { name, due, priority, note, assignees } */
+function buildTaskBody_(entry, settings, opts) {
+  const body = {
+    name: clip_(opts.name || '(件名なし)', 200),
+    description: (opts.note ? clip_(opts.note, 2000) + '\n\n' : '') + buildTaskDescription_(entry),
+  };
+  if (opts.due) body.due = opts.due;
+  if (opts.priority !== undefined && opts.priority !== 0) body.priority = opts.priority;
+  if (opts.assignees && opts.assignees.length) body.assignees = opts.assignees;
+  if (entry.newProjectCandidate) body.tags = [settings.newProjectTag];
+  return body;
+}
+
+/** タスクを作る。タグが無いなどで失敗したときは、タグを外してタイトルに印を付けて作り直す。 */
+function createTaskWithFallback_(project, body, settings) {
+  try {
+    return quireCreateTask_(project.id, body);
+  } catch (e) {
+    if (!body.tags) throw e;
+    const retry = JSON.parse(JSON.stringify(body));
+    delete retry.tags;
+    retry.name = clip_('[' + settings.newProjectTag + '] ' + retry.name, 200);
+    return quireCreateTask_(project.id, retry);
+  }
 }
 
 function buildTaskDescription_(entry) {

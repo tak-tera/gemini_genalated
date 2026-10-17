@@ -15,7 +15,7 @@ function approvalCard_(entry, selectedName) {
 
   const buttons = [
     linkButton_('登録する', actionUrl_('approve', entry.messageId), true),
-    linkButton_('登録先を変える', actionUrl_('choose', entry.messageId)),
+    linkButton_('内容を直して登録', actionUrl_('edit', entry.messageId)),
     linkButton_('却下', actionUrl_('reject', entry.messageId)),
   ];
   const gmailUrl = safeGmailUrl_(entry.gmailUrl);

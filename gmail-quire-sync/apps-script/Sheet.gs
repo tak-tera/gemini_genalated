@@ -87,6 +87,17 @@ function updateLog_(row, values) {
   });
 }
 
+/** 元の行をもとに、登録ログへ1行追加する（1通から複数タスクを作ったとき）。values で列を上書きする。 */
+function appendLogCopy_(entry, newId, values) {
+  const row = [];
+  Object.keys(COL).forEach(function (key) {
+    const v = values.hasOwnProperty(key) ? values[key] : entry[key];
+    row[COL[key] - 1] = v === undefined ? '' : v;
+  });
+  row[COL.messageId - 1] = newId;
+  sheet_(SHEET.LOG).appendRow(row);
+}
+
 /** 「名前 <addr@example.com>」からアドレスだけを取り出す。 */
 function emailAddress_(sender) {
   const text = String(sender || '');
