@@ -1,0 +1,48 @@
+{
+  "title": "メールから“自分のタスク”をワンタップで Quire へ",
+  "subtitle": "Gmail・議事録など → Claude → スプレッドシート → Apps Script＋Google Chat → Quire",
+  "lanes": [
+    {
+      "badge": "入口", "name": "メール・会議など", "color": "rose", "width": 0.95,
+      "blocks": [
+        {"type": "card", "icon": "mail", "title": "Gmail で\n依頼メールを受信"},
+        {"type": "card", "title": "議事録・チャット・\n手入力", "caption": "共通スキルで追加", "size": 13}
+      ],
+      "notes": [{"text": "メールは毎時、\n自動でチェック", "color": "gray"}]
+    },
+    {
+      "badge": "判断", "name": "Claude", "color": "violet", "width": 1.1,
+      "blocks": [
+        {"type": "card", "num": 1, "icon": "ai", "title": "自分の作業か判定", "caption": "予定・自動通知は除外"},
+        {"type": "card", "num": 2, "title": "登録先プロジェクトを\n推定"},
+        {"type": "card", "num": 3, "title": "「承認待ち」で記録"}
+      ]
+    },
+    {
+      "badge": "台帳", "name": "スプレッドシート", "color": "blue", "width": 0.95,
+      "blocks": [
+        {"type": "card", "icon": "sheet", "title": "振り分けルール", "caption": "相手・関係性・キーワード"},
+        {"type": "card", "title": "設定"},
+        {"type": "card", "title": "登録ログ", "caption": "判断の記録が残る"}
+      ]
+    },
+    {
+      "badge": "確認", "name": "Apps Script＋Chat", "color": "teal", "width": 1.1,
+      "blocks": [
+        {"type": "card", "num": 1, "icon": "user", "title": "Chat に確認カードを\n送信"},
+        {"type": "card", "num": 2, "color": "amber", "title": "人がボタンで判断", "caption": "登録／直して登録／却下", "badge": "ここが要"}
+      ]
+    },
+    {
+      "badge": "出力", "name": "Quire", "color": "green", "width": 0.95,
+      "blocks": [
+        {"type": "card", "icon": "gear", "title": "タスクを作成", "caption": "期間・担当者つき"},
+        {"type": "card", "color": "gray", "title": "移動を学習して\nルールへ反映", "size": 13}
+      ]
+    }
+  ],
+  "callout": {
+    "x": 0.05, "width": 0.62,
+    "text": ["AIは下書きまで。決めるのは人。", "判断の記録が台帳に残り、使うほど振り分けが賢くなる"]
+  }
+}
