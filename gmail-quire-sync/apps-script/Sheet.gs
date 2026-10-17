@@ -22,6 +22,8 @@ function getSettings_() {
     generalProject: String(map['General の入れ先'] || 'Inbox（個人）').trim(),
     confirmInChat: !(confirm === false || String(confirm).toUpperCase() === 'FALSE'),
     newProjectTag: String(map['新規プロジェクト候補のタグ'] || '新規PJ候補').trim(),
+    // Quire の担当者。「me」は Quire に接続したユーザー（自分）。複数は ; 区切り。空欄なら担当者なし
+    assignees: map['Quire の担当者'] === undefined ? ['me'] : splitList_(map['Quire の担当者']),
   };
 }
 

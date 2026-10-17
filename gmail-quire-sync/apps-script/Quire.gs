@@ -113,6 +113,7 @@ function registerEntry_(entry, projectName) {
   };
   const due = toQuireDate_(entry.due);
   if (due) body.due = due;
+  if (settings.assignees.length) body.assignees = settings.assignees;
   if (entry.newProjectCandidate) body.tags = [settings.newProjectTag];
 
   let task;
