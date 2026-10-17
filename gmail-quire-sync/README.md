@@ -46,6 +46,14 @@ Google Cloud の設定は不要です。チャットへの送信は Google Chat 
 - `docs/setup.md` … 設定手順（Webhook・Web アプリ・Quire API）
 - `docs/claude-routine.md` … Claude の定期実行タスクに渡す指示文
 
+## メール以外からの候補（共通スキル）
+
+`skill/quire-task-candidate/SKILL.md` は、会議・議事録、チャット、手入力、他プロジェクトなどから
+タスク候補を登録ログに追加するための Claude のスキルです（claude.ai のアカウント共通スキルとして使う）。
+候補は「出どころ」列（V列）で区別され、メールと同じくチャットで確認してから Quire に登録されます。
+使う前に `【スプレッドシートID】` を実際の ID に置き換えてください。
+送信者の学習はメール由来の候補だけで行います。
+
 ## 新しいプロジェクトの扱い
 
 Quire API にはプロジェクトを作る機能がないため、既存のどれにも合わない案件は General に入れ、

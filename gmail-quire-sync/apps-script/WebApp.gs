@@ -208,7 +208,7 @@ function editPage_(entry, action, sig) {
       };
     })(),
   };
-  const gmailUrl = safeGmailUrl_(entry.gmailUrl);
+  const sourceUrl = safeSourceUrl_(entry.gmailUrl);
 
   const html =
     '<div id="main">' +
@@ -218,7 +218,8 @@ function editPage_(entry, action, sig) {
     '<p class="note">' + escapeHtml_(clip_(entry.sender, 200)) + '</p>' +
     (entry.summary ? '<p>' + escapeHtml_(clip_(entry.summary, 1000)) + '</p>' : '') +
     (entry.reason ? '<p class="note">判定理由: ' + escapeHtml_(clip_(entry.reason, 300)) + '</p>' : '') +
-    (gmailUrl ? '<p><a href="' + escapeHtml_(gmailUrl) + '" target="_blank">メールを開く</a></p>' : '') +
+    '<p class="note">出どころ: ' + escapeHtml_(clip_(sourceOf_(entry), 20)) + '</p>' +
+    (sourceUrl ? '<p><a href="' + escapeHtml_(sourceUrl) + '" target="_blank">' + escapeHtml_(sourceLinkLabel_(entry)) + '</a></p>' : '') +
     '</div>' +
     '<label>担当者（me は自分。複数は ; 区切り）<input id="assignees"></label>' +
     '<div id="tasks"></div>' +

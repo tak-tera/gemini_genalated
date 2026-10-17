@@ -5,7 +5,7 @@
  */
 
 // Web ページの下に表示するバージョン。デプロイが最新か確かめるときに使う
-const APP_VERSION = '2026-10-17 期間登録対応';
+const APP_VERSION = '2026-10-17 出どころ対応';
 
 const SHEET = {
   RULES: '振り分けルール',
@@ -36,7 +36,11 @@ const COL = {
   taskOid: 19,            // Quire タスク OID
   summary: 20,            // メール要約
   start: 21,              // 開始日時
+  source: 22,             // 出どころ（メール／会議・議事録／チャット／手入力／その他）
 };
+
+// 出どころ。空欄の古い行はメールとして扱う
+const SOURCE = { MAIL: 'メール', MEETING: '会議・議事録', CHAT: 'チャット', MANUAL: '手入力', OTHER: 'その他' };
 
 // 5分ごとの実行で、チャットへ送る（または自動登録する）最大件数
 const MAX_PER_RUN = 20;

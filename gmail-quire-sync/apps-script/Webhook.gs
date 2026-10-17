@@ -93,6 +93,41 @@ function safeGmailUrl_(value) {
   return safeUrl_(value, 'https://mail.google.com/');
 }
 
+// 元リンクとして開いてよいサイト。これ以外の URL はカードやタスクに載せない
+const SOURCE_LINK_PREFIXES = [
+  'https://mail.google.com/',
+  'https://docs.google.com/',
+  'https://drive.google.com/',
+  'https://chat.google.com/',
+  'https://mail.google.com/chat/',
+  'https://calendar.google.com/',
+  'https://quire.io/',
+];
+
+/** 元リンクを確かめる。許可したサイトの https URL だけを通す。 */
+function safeSourceUrl_(value) {
+  for (let i = 0; i < SOURCE_LINK_PREFIXES.length; i++) {
+    const url = safeUrl_(value, SOURCE_LINK_PREFIXES[i]);
+    if (url) return url;
+  }
+  return '';
+}
+
+/** 出どころ。空欄（古い行）はメール。 */
+function sourceOf_(entry) {
+  const s = String(entry.source || '').trim();
+  return s || SOURCE.MAIL;
+}
+
+function isMail_(entry) {
+  return sourceOf_(entry) === SOURCE.MAIL;
+}
+
+/** 出どころに合わせた「元資料を開く」ボタンの文言。 */
+function sourceLinkLabel_(entry) {
+  return isMail_(entry) ? 'メールを開く' : '元資料を開く';
+}
+
 function safeQuireUrl_(value) {
   return safeUrl_(value, 'https://quire.io/');
 }

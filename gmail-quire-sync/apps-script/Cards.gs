@@ -2,7 +2,7 @@
 
 function approvalCard_(entry, selectedName) {
   const widgets = [
-    textWidget_('送信者', clip_(entry.sender, 200)),
+    textWidget_(isMail_(entry) ? '送信者' : '依頼元（' + clip_(sourceOf_(entry), 20) + '）', clip_(entry.sender, 200)),
     textWidget_('タスク名', clip_(entry.taskName, 200)),
     textWidget_('登録先', selectedName),
   ];
@@ -18,8 +18,8 @@ function approvalCard_(entry, selectedName) {
     linkButton_('内容を直して登録', actionUrl_('edit', entry.messageId)),
     linkButton_('却下', actionUrl_('reject', entry.messageId)),
   ];
-  const gmailUrl = safeGmailUrl_(entry.gmailUrl);
-  if (gmailUrl) buttons.push(linkButton_('メールを開く', gmailUrl));
+  const sourceUrl = safeSourceUrl_(entry.gmailUrl);
+  if (sourceUrl) buttons.push(linkButton_(sourceLinkLabel_(entry), sourceUrl));
   widgets.push({ buttonList: { buttons: buttons } });
 
   return {

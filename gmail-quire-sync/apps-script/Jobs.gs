@@ -67,7 +67,7 @@ function syncQuireMoves() {
     if (!project || project.name === String(entry.currentProject)) return;
 
     const updates = { currentProject: project.name, taskUrl: task.url };
-    if (project.name !== settings.generalProject) {
+    if (project.name !== settings.generalProject && isMail_(entry)) {
       learnSender_(entry.sender, project);
       updates.learned = true;
     }

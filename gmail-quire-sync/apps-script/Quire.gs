@@ -185,8 +185,12 @@ function registerEditedEntry_(entry, form) {
   return { created: created, error: error };
 }
 
-/** 判定と違う1つのプロジェクトに入れたときだけ、送信者を覚えさせる。 */
+/**
+ * 判定と違う1つのプロジェクトに入れたときだけ、送信者を覚えさせる。
+ * メール以外（会議名や人の名前など）は送信元アドレスではないので覚えさせない。
+ */
 function shouldLearn_(entry, projects, settings) {
+  if (!isMail_(entry)) return false;
   const names = projects.map(function (p) { return p.name; })
     .filter(function (n, i, a) { return a.indexOf(n) === i; });
   return names.length === 1 && names[0] !== String(entry.judgedProject) && names[0] !== settings.generalProject;
@@ -222,17 +226,18 @@ function createTaskWithFallback_(project, body, settings) {
 function buildTaskDescription_(entry) {
   const lines = [];
   if (entry.summary) lines.push(clip_(entry.summary, 2000), '');
-  lines.push('**メール情報**');
-  lines.push('- 送信者: ' + clip_(entry.sender, 200));
-  lines.push('- 件名: ' + clip_(entry.subject, 300));
+  const mail = isMail_(entry);
+  lines.push(mail ? '**メール情報**' : '**元情報（' + clip_(sourceOf_(entry), 20) + '）**');
+  lines.push((mail ? '- 送信者: ' : '- 依頼元: ') + clip_(entry.sender, 200));
+  lines.push((mail ? '- 件名: ' : '- 題名: ') + clip_(entry.subject, 300));
   if (entry.receivedAt) {
     const received = entry.receivedAt instanceof Date
       ? Utilities.formatDate(entry.receivedAt, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm')
       : entry.receivedAt;
-    lines.push('- 受信: ' + received);
+    lines.push((mail ? '- 受信: ' : '- 受付: ') + received);
   }
-  const gmailUrl = safeGmailUrl_(entry.gmailUrl);
-  if (gmailUrl) lines.push('- [Gmail で開く](' + gmailUrl + ')');
+  const sourceUrl = safeSourceUrl_(entry.gmailUrl);
+  if (sourceUrl) lines.push('- [' + (mail ? 'Gmail で開く' : '元資料を開く') + '](' + sourceUrl + ')');
   if (entry.reason) lines.push('', '**振り分け理由**: ' + clip_(entry.reason, 500));
   if (entry.newProjectCandidate) lines.push('', '**新規プロジェクト候補**: ' + clip_(entry.newProjectCandidate, 100));
   return lines.join('\n');
