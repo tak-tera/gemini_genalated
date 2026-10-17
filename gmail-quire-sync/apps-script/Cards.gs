@@ -6,8 +6,8 @@ function approvalCard_(entry, selectedName) {
     textWidget_('タスク名', clip_(entry.taskName, 200)),
     textWidget_('登録先', selectedName),
   ];
-  const due = toQuireDate_(entry.due);
-  if (due) widgets.push(textWidget_('期限', due));
+  const schedule = scheduleLabel_(defaultSchedule_(entry));
+  if (schedule) widgets.push(textWidget_('期間', schedule));
   widgets.push(textWidget_('判定', [entry.method, entry.confidence !== '' ? '確信度 ' + entry.confidence : '']
     .filter(String).join(' / ')));
   if (entry.reason) widgets.push(textWidget_('理由', clip_(entry.reason, 300)));

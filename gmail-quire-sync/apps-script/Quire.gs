@@ -107,13 +107,16 @@ function registerEntry_(entry, projectName) {
     throw new Error('登録先プロジェクト「' + (projectName || entry.judgedProject) + '」が振り分けルールにありません。');
   }
 
+  const schedule = defaultSchedule_(entry);
   const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
     name: entry.taskName || entry.subject,
-    due: toQuireDate_(entry.due),
+    start: toQuireDateTime_(schedule.start.date, schedule.start.time),
+    due: toQuireDateTime_(schedule.end.date, schedule.end.time),
     assignees: settings.assignees,
   }), settings);
 
   const updates = {
+    start: partsText_(schedule.start),
     status: STATUS.DONE,
     taskUrl: safeQuireUrl_(task.url),
     taskOid: task.oid || '',
@@ -144,7 +147,7 @@ function registerEditedEntry_(entry, form) {
     const project = findProjectByName_(t.project, projects);
     try {
       const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
-        name: t.name, due: t.due, priority: t.priority, note: t.note, assignees: form.assignees,
+        name: t.name, start: t.quireStart, due: t.quireDue, priority: t.priority, note: t.note, assignees: form.assignees,
       }), settings);
       created.push({ task: task, project: project, form: t });
     } catch (e) {
@@ -159,7 +162,8 @@ function registerEditedEntry_(entry, form) {
   created.forEach(function (c, i) {
     const values = {
       taskName: c.form.name,
-      due: c.form.due,
+      start: c.form.startText,
+      due: c.form.dueText,
       status: STATUS.DONE,
       taskUrl: safeQuireUrl_(c.task.url),
       taskOid: c.task.oid || '',
@@ -188,12 +192,13 @@ function shouldLearn_(entry, projects, settings) {
   return names.length === 1 && names[0] !== String(entry.judgedProject) && names[0] !== settings.generalProject;
 }
 
-/** Quire に送るタスクの中身。opts: { name, due, priority, note, assignees } */
+/** Quire に送るタスクの中身。opts: { name, start, due, priority, note, assignees }（start / due は Quire 形式） */
 function buildTaskBody_(entry, settings, opts) {
   const body = {
     name: clip_(opts.name || '(件名なし)', 200),
     description: (opts.note ? clip_(opts.note, 2000) + '\n\n' : '') + buildTaskDescription_(entry),
   };
+  if (opts.start) body.start = opts.start;
   if (opts.due) body.due = opts.due;
   if (opts.priority !== undefined && opts.priority !== 0) body.priority = opts.priority;
   if (opts.assignees && opts.assignees.length) body.assignees = opts.assignees;

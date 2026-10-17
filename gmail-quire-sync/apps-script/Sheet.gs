@@ -121,14 +121,73 @@ function learnSender_(sender, project) {
   return true;
 }
 
-/** シートの日付やテキストを Quire 用の yyyy-MM-dd にする。読めなければ空文字。 */
-function toQuireDate_(value) {
+/**
+ * シートの日付・日時（Date または文字列）を { date: 'yyyy-MM-dd', time: 'HH:mm' } に分ける。
+ * 時刻が無い、または 0:00 のときは time を空にする（日付のみとして扱う）。読めなければ両方空。
+ */
+function toDateParts_(value) {
+  const pad = function (n) { return ('0' + n).slice(-2); };
   if (value instanceof Date && !isNaN(value)) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const tz = Session.getScriptTimeZone();
+    const time = Utilities.formatDate(value, tz, 'HH:mm');
+    return { date: Utilities.formatDate(value, tz, 'yyyy-MM-dd'), time: time === '00:00' ? '' : time };
   }
-  const m = String(value || '').match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})/);
-  if (!m) return '';
-  return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  const m = String(value || '').match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})日?(?:[ T　]+(\d{1,2}):(\d{2}))?/);
+  if (!m) return { date: '', time: '' };
+  const time = m[4] ? pad(m[4]) + ':' + m[5] : '';
+  return { date: m[1] + '-' + pad(m[2]) + '-' + pad(m[3]), time: time === '00:00' ? '' : time };
+}
+
+/** シートの値を Quire 用の yyyy-MM-dd にする（日付だけ）。読めなければ空文字。 */
+function toQuireDate_(value) {
+  return toDateParts_(value).date;
+}
+
+/**
+ * 日本時間の日付と時刻を Quire API の形式にする。
+ * 時刻なし → 'yyyy-MM-dd'、時刻あり → UTC の 'yyyy-MM-ddTHH:mmZ'（Quire の仕様）。
+ */
+function toQuireDateTime_(date, time) {
+  if (!date) return '';
+  if (!time) return date;
+  const d = Utilities.parseDate(date + ' ' + time, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  return Utilities.formatDate(d, 'UTC', "yyyy-MM-dd'T'HH:mm") + 'Z';
+}
+
+/** 表示・シート保存用の「yyyy-MM-dd」または「yyyy-MM-dd HH:mm」。 */
+function partsText_(parts) {
+  return parts.date ? parts.date + (parts.time ? ' ' + parts.time : '') : '';
+}
+
+/**
+ * 「登録する」ボタンで使う日程。標準は期間（開始〜終了）。
+ * 終了（期限）があって開始が無いときは、登録した日を開始日にする。開始が終了より後なら終了日にそろえる。
+ * 戻り値: { start: parts, end: parts }
+ */
+function defaultSchedule_(entry) {
+  const end = toDateParts_(entry.due);
+  let start = toDateParts_(entry.start);
+  if (end.date && !start.date) {
+    start = { date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), time: '' };
+  }
+  if (start.date && end.date && compareParts_(start, end) > 0) start = { date: end.date, time: '' };
+  return { start: start, end: end };
+}
+
+/** 2つの日時を比べる。時刻が無い開始はその日の 0:00、時刻が無い終了はその日の終わりとみなす。 */
+function compareParts_(start, end) {
+  const a = start.date + ' ' + (start.time || '00:00');
+  const b = end.date + ' ' + (end.time || '23:59');
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** カード表示用の「10/20 〜 10/31 18:00」。 */
+function scheduleLabel_(schedule) {
+  const f = function (p) { return p.date ? p.date.slice(5).replace('-', '/') + (p.time ? ' ' + p.time : '') : ''; };
+  if (schedule.start.date && schedule.end.date) return f(schedule.start) + ' 〜 ' + f(schedule.end);
+  if (schedule.end.date) return '期日 ' + f(schedule.end);
+  if (schedule.start.date) return f(schedule.start) + ' 〜';
+  return '';
 }
 
 function now_() {

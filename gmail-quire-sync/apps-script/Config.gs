@@ -5,7 +5,7 @@
  */
 
 // Web ページの下に表示するバージョン。デプロイが最新か確かめるときに使う
-const APP_VERSION = '2026-10-17 編集ページ対応';
+const APP_VERSION = '2026-10-17 期間登録対応';
 
 const SHEET = {
   RULES: '振り分けルール',
@@ -20,7 +20,7 @@ const COL = {
   sender: 3,              // 送信者
   subject: 4,             // 件名
   taskName: 5,            // タスク名案
-  due: 6,                 // 期限
+  due: 6,                 // 期限（終了日時）
   judgedProject: 7,       // 判定プロジェクト
   method: 8,              // 判定方法（ルール/AI/General）
   confidence: 9,          // 確信度
@@ -35,6 +35,7 @@ const COL = {
   chatMessage: 18,        // Chat メッセージ名
   taskOid: 19,            // Quire タスク OID
   summary: 20,            // メール要約
+  start: 21,              // 開始日時
 };
 
 // 5分ごとの実行で、チャットへ送る（または自動登録する）最大件数
