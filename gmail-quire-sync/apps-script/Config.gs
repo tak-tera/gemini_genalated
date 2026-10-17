@@ -1,6 +1,6 @@
 /**
  * 共通設定。
- * 秘密情報（Quire のクライアントシークレットなど）はコードに書かず、
+ * 秘密情報（Webhook URL、Quire のクライアントシークレットなど）はコードやシートに書かず、
  * スクリプト プロパティに保存する（docs/setup.md 参照）。
  */
 
@@ -33,6 +33,9 @@ const COL = {
   taskOid: 19,            // Quire タスク OID
   summary: 20,            // メール要約
 };
+
+// 5分ごとの実行で、チャットへ送る（または自動登録する）最大件数
+const MAX_PER_RUN = 20;
 
 const STATUS = {
   PENDING: '承認待ち',

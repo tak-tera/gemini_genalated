@@ -108,7 +108,7 @@ function registerEntry_(entry, projectName) {
   }
 
   const body = {
-    name: String(entry.taskName || entry.subject || '(件名なし)'),
+    name: clip_(entry.taskName || entry.subject || '(件名なし)', 200),
     description: buildTaskDescription_(entry),
   };
   const due = toQuireDate_(entry.due);
@@ -128,7 +128,7 @@ function registerEntry_(entry, projectName) {
 
   const updates = {
     status: STATUS.DONE,
-    taskUrl: task.url || '',
+    taskUrl: safeQuireUrl_(task.url),
     taskOid: task.oid || '',
     currentProject: project.name,
   };
@@ -143,18 +143,19 @@ function registerEntry_(entry, projectName) {
 
 function buildTaskDescription_(entry) {
   const lines = [];
-  if (entry.summary) lines.push(String(entry.summary), '');
+  if (entry.summary) lines.push(clip_(entry.summary, 2000), '');
   lines.push('**メール情報**');
-  lines.push('- 送信者: ' + entry.sender);
-  lines.push('- 件名: ' + entry.subject);
+  lines.push('- 送信者: ' + clip_(entry.sender, 200));
+  lines.push('- 件名: ' + clip_(entry.subject, 300));
   if (entry.receivedAt) {
     const received = entry.receivedAt instanceof Date
       ? Utilities.formatDate(entry.receivedAt, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm')
       : entry.receivedAt;
     lines.push('- 受信: ' + received);
   }
-  if (entry.gmailUrl) lines.push('- [Gmail で開く](' + entry.gmailUrl + ')');
-  if (entry.reason) lines.push('', '**振り分け理由**: ' + entry.reason);
-  if (entry.newProjectCandidate) lines.push('', '**新規プロジェクト候補**: ' + entry.newProjectCandidate);
+  const gmailUrl = safeGmailUrl_(entry.gmailUrl);
+  if (gmailUrl) lines.push('- [Gmail で開く](' + gmailUrl + ')');
+  if (entry.reason) lines.push('', '**振り分け理由**: ' + clip_(entry.reason, 500));
+  if (entry.newProjectCandidate) lines.push('', '**新規プロジェクト候補**: ' + clip_(entry.newProjectCandidate, 100));
   return lines.join('\n');
 }

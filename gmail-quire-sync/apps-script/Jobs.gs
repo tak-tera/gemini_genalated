@@ -9,9 +9,10 @@ function processPending() {
   if (!lock.tryLock(10000)) return; // 前回の実行がまだ動いている
   try {
     const settings = getSettings_();
+    // 1回に処理する件数に上限を設け、想定外に大量の行が書き込まれても一度に流れないようにする
     const pending = getLogEntries_().filter(function (e) {
       return e.status === STATUS.PENDING && !e.notifiedAt;
-    });
+    }).slice(0, MAX_PER_RUN);
     if (!pending.length) return;
 
     if (!settings.confirmInChat) {
@@ -31,7 +32,7 @@ function processPending() {
         ? String(entry.judgedProject) : settings.generalProject;
       try {
         const message = sendToChat_({
-          text: 'Quire 登録の確認: ' + entry.subject,
+          text: 'Quire 登録の確認: ' + clip_(entry.subject, 100),
           cardsV2: [approvalCard_(entry, selected)],
         });
         updateLog_(entry.row, { notifiedAt: now_(), chatMessage: message.name || '' });
