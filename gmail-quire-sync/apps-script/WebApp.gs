@@ -245,7 +245,8 @@ function page_(title, body) {
     '.btn{display:inline-block;background:#0f766e;color:#fff;border:0;border-radius:8px;padding:12px 18px;' +
     'font-size:16px;text-decoration:none}.btn:disabled{opacity:.6}' +
     '</style>';
-  return HtmlService.createHtmlOutput(style + body)
+  const footer = '<p class="note" style="margin-top:32px">バージョン: ' + escapeHtml_(APP_VERSION) + '</p>';
+  return HtmlService.createHtmlOutput(style + body + footer)
     .setTitle(title)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

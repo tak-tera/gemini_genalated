@@ -4,6 +4,9 @@
  * スクリプト プロパティに保存する（docs/setup.md 参照）。
  */
 
+// Web ページの下に表示するバージョン。デプロイが最新か確かめるときに使う
+const APP_VERSION = '2026-10-17 編集ページ対応';
+
 const SHEET = {
   RULES: '振り分けルール',
   SETTINGS: '設定',
