@@ -1,0 +1,58 @@
+{
+  "title": "技術構成：どこで何が動いているか",
+  "subtitle": "Claude 定期実行（MCP コネクタ）→ Sheets → Apps Script（時間主導トリガー／Web アプリ）→ Chat Webhook・Quire REST API",
+  "lanes": [
+    {
+      "badge": "実行", "name": "Claude 定期実行", "color": "violet", "width": 1.0,
+      "platform": {"logo": "logos/anthropic.svg", "logo_w": 78},
+      "blocks": [
+        {"type": "card", "num": 1, "logo": "logos/gmail.svg", "title": "Gmail を検索・取得", "caption": "MCP コネクタ・毎時", "size": 13},
+        {"type": "card", "num": 2, "title": "判定・振り分け", "caption": "本文はデータとして扱う", "size": 13},
+        {"type": "card", "num": 3, "title": "登録ログへ追記", "caption": "MCP コネクタ・追記のみ", "size": 13}
+      ]
+    },
+    {
+      "badge": "データ", "name": "スプレッドシート", "color": "blue", "width": 0.95,
+      "platform": {"logo": "logos/google-workspace.svg", "logo_w": 104},
+      "blocks": [
+        {"type": "card", "logo": "logos/google-sheets.svg", "title": "登録ログ（A:V）", "caption": "承認待ち→登録済／却下", "size": 13},
+        {"type": "card", "title": "振り分けルール", "caption": "送信元・関係性・キーワード", "size": 13},
+        {"type": "card", "title": "設定", "caption": "General・下限・担当者", "size": 13}
+      ]
+    },
+    {
+      "badge": "定期", "name": "Apps Script", "color": "teal", "width": 1.0,
+      "platform": {"logo": "logos/google-workspace.svg", "logo_w": 104},
+      "blocks": [
+        {"type": "card", "num": 1, "logo": "logos/google-apps-script.svg", "title": "processPending", "caption": "時間主導 5分／最大20件", "size": 13},
+        {"type": "card", "num": 2, "logo": "logos/google-chat.svg", "title": "Chat へカード送信", "caption": "Webhook・cardsV2", "size": 13},
+        {"type": "card", "num": 3, "title": "syncQuireMoves", "caption": "毎朝・移動から学習", "size": 13}
+      ]
+    },
+    {
+      "badge": "確認", "name": "Web アプリ", "color": "teal", "width": 1.1,
+      "platform": {"logo": "logos/google-workspace.svg", "logo_w": 104},
+      "blocks": [
+        {"type": "card", "num": 1, "title": "doGet で表示", "caption": "アクセスは自分のみ", "size": 13},
+        {"type": "card", "num": 2, "color": "amber", "title": "HMAC 署名を検証", "caption": "偽リンク・改ざんを拒否", "badge": "ここが要", "size": 13},
+        {"type": "card", "num": 3, "title": "入力検証と排他制御", "caption": "LockService で二重登録防止", "size": 13}
+      ]
+    },
+    {
+      "badge": "API", "name": "Quire", "color": "green", "width": 0.95,
+      "platform": {"text": "REST API・OAuth 2.0"},
+      "blocks": [
+        {"type": "card", "logo": "logos/quire.svg", "title": "タスク作成", "caption": "POST /task/id/{project}", "size": 13},
+        {"type": "card", "title": "日時は UTC で送信", "caption": "日本時間から変換", "size": 13},
+        {"type": "card", "title": "トークン自動更新", "caption": "apps-script-oauth2", "size": 13}
+      ]
+    }
+  ],
+  "brackets": [
+    {"lanes": [2, 4], "text": "Google Workspace の中で完結（Google Cloud プロジェクト不要）", "color": "teal"}
+  ],
+  "callout": {
+    "x": 0.05, "width": 0.7,
+    "text": ["秘密情報（Webhook URL・OAuth トークン・署名鍵）はスクリプト プロパティだけに保存。", "AI の書き込みは「追記」まで。Quire への登録は必ず人の承認を通る"]
+  }
+}
