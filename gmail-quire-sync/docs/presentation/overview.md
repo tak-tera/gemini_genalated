@@ -15,7 +15,7 @@ Google Workspace（Gmail・スプレッドシート・Apps Script・Chat）を�
 |---|---|
 | AI は下書きまで | Claude はスプレッドシートへの「追記」だけ。Quire への登録は人の承認後に Apps Script が行う |
 | 判断の記録を残す | 候補・判定理由・承認結果をすべて「登録ログ」に1行ずつ残す |
-| 使うほど賢く | 登録先の変更や Quire での移動から、送信元を振り分けルールに自動追加 |
+| 使うほど賢く | 登録先の変更や Quire での移動から、送信元を振り分けルールに自動追加。Claude は判断のたびに振り分けルールと登録ログの過去の判断（最終的な登録先・却下）を参照する |
 | 予定と作業を分ける | 会議・講演の日時はカレンダー、準備や事後の作業だけを Quire へ |
 | 入口を増やせる | メール以外（議事録・チャット・手入力）も、共通スキルで同じ台帳に流し込む |
 
@@ -23,7 +23,7 @@ Google Workspace（Gmail・スプレッドシート・Apps Script・Chat）を�
 
 | 層 | サービス | 役割 | 技術要素 |
 |---|---|---|---|
-| 判断 | Claude（Anthropic） | メール判定・振り分け | Claude の定期実行タスク（毎時）、Gmail／Sheets の MCP コネクタ |
+| 判断 | Claude（Anthropic） | メール判定・振り分け | Claude の定期実行タスク（毎時）、Gmail／Sheets の MCP コネクタ。振り分けルールと登録ログ（過去の判断）を読んで登録先を推定 |
 | 入口 | Gmail（Google Workspace） | 依頼メール | 検索条件で招待（invite.ics）・通知を除外、処理済みラベル |
 | 台帳 | Google スプレッドシート（Google Workspace） | 振り分けルール・設定・登録ログ | 登録ログ A:V（候補ID、判定、ステータス、開始／終了日時、出どころ など） |
 | 定期処理 | Google Apps Script（Google Workspace） | 確認カード送信・学習 | 時間主導トリガー：`processPending`（5分）、`syncQuireMoves`（毎朝） |
@@ -33,7 +33,7 @@ Google Workspace（Gmail・スプレッドシート・Apps Script・Chat）を�
 
 ## 4. 処理の流れ
 
-1. **毎時**：Claude が Gmail を検索し、自分の作業かを判定（予定への出席・自動通知は除外）。1通から最大3件の作業を抽出し、振り分けルールで登録先を推定して「承認待ち」で追記
+1. **毎時**：Claude が Gmail を検索し、自分の作業かを判定（予定への出席・自動通知は除外）。1通から最大3件の作業を抽出し、スプレッドシートの振り分けルールと過去の判断（同じ送信者・似た件名の最終的な登録先、却下の傾向）を参照して登録先を推定し、「承認待ち」で追記
 2. **5分ごと**：Apps Script が承認待ちの行を見つけ、Chat の Webhook に確認カードを送信（1回最大20件）
 3. **ワンタップ**：カードのボタンから Web アプリを開く
    - 登録する：判定どおり、期間（開始〜終了）・担当者つきで登録
@@ -68,5 +68,5 @@ AI は下書きまで。決めるのは人。判断の記録が台帳に残り�
 - `layered.png`：アーキテクチャ（レイヤー構成。台帳を中心に、AI・処理・人の層を示す）※メインの図
 - `architecture.png`：処理の流れに沿った全体像（レーン構成）
 - `technical.png`：技術構成（開発者・パワーユーザー向け。ランタイム・API・セキュリティ）
-- レーン構成の図は `*.json` を `tools/archdiagram_logo.py` で、レイヤー構成の図は `tools/layered_arch.py` で作り直せる
+- レーン構成の図は `*.json` を `tools/archdiagram_logo.py` で、レイヤー構成の図は `layered.json` を `tools/layered_arch.py` で作り直せる（`python3 tools/layered_arch.py layered.json -o layered.svg --png layered.png`）。同じ生成器は共通スキル terao-layered-arch にも入っている
 - ロゴの出典は `logos/README.md`

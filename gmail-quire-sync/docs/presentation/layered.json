@@ -1,0 +1,228 @@
+{
+  "logo_dir": "logos",
+  "title": "Gmail → Quire タスク登録アーキテクチャ",
+  "subtitle": "AI が下書きし、人が承認する。Google Workspace の台帳を中心にした登録基盤",
+  "layers": [
+    {
+      "id": "ai",
+      "color": "violet",
+      "marks": [
+        {
+          "logo": "claude.svg"
+        }
+      ],
+      "title": "Claude（AI 判断）",
+      "sub": "定期実行（毎時）／共通スキル",
+      "badge_logo": {
+        "logo": "anthropic.svg",
+        "x": 300,
+        "w": 92,
+        "h": 14
+      },
+      "right": [
+        "タスクの判定・抽出",
+        "ルールと過去の判断から登録先を推定"
+      ]
+    },
+    {
+      "id": "hub",
+      "color": "amber",
+      "emphasis": true,
+      "h": 72,
+      "gap_after": 40,
+      "marks": [
+        {
+          "logo": "google-sheets.svg",
+          "w": 40,
+          "h": 44
+        }
+      ],
+      "title": "台帳：登録ログ",
+      "sub": "Google スプレッドシート／候補・判定・承認を記録し、次の判断に使う",
+      "right": [
+        "状態管理",
+        "承認待ち → 登録済／却下"
+      ]
+    },
+    {
+      "id": "mid",
+      "type": "row",
+      "h": 128,
+      "items": [
+        {
+          "id": "card",
+          "color": "teal",
+          "title": "確認カード送信",
+          "marks": [
+            {
+              "logo": "google-apps-script.svg"
+            },
+            {
+              "logo": "google-chat.svg"
+            }
+          ],
+          "lines": [
+            "Apps Script（5分ごと）",
+            "Chat Webhook・cardsV2",
+            "1回最大20件"
+          ]
+        },
+        {
+          "id": "rules",
+          "color": "blue",
+          "title": "ルール・設定",
+          "marks": [
+            {
+              "logo": "google-sheets.svg"
+            }
+          ],
+          "lines": [
+            "送信元・関係性・キーワード",
+            "修正・移動から学習（毎朝）",
+            "担当者・General の入れ先"
+          ]
+        },
+        {
+          "id": "page",
+          "color": "amber",
+          "emphasis": true,
+          "title": "承認ページ（安全制御）",
+          "marks": [
+            {
+              "logo": "google-apps-script.svg"
+            }
+          ],
+          "lines": [
+            "アクセスは本人のみ",
+            "HMAC 署名・入力検証",
+            "二重登録を防止"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "human",
+      "color": "rose",
+      "marks": [
+        {
+          "icon": "users",
+          "color": "rose"
+        }
+      ],
+      "title": "人（承認者）",
+      "sub": "Google Chat のカードから判断",
+      "right": [
+        "登録する｜内容を直して登録｜却下",
+        "最終判断は必ず人が行う"
+      ]
+    }
+  ],
+  "boundary": {
+    "layers": [
+      "hub",
+      "mid"
+    ],
+    "logo": "google-workspace.svg",
+    "logo_w": 120,
+    "logo_h": 18
+  },
+  "links": [
+    {
+      "from": "ai",
+      "to": "hub",
+      "dx": 90,
+      "label": "承認待ちを追記"
+    },
+    {
+      "from": "hub",
+      "to": "ai",
+      "dx": -90,
+      "label": "ルール・過去の判断を参照",
+      "label_side": "left",
+      "strong": true,
+      "color": "violet"
+    },
+    {
+      "from": "hub",
+      "to": "card"
+    },
+    {
+      "from": "hub",
+      "to": "rules",
+      "both": true
+    },
+    {
+      "from": "hub",
+      "to": "page",
+      "both": true
+    },
+    {
+      "from": "card",
+      "to": "human",
+      "label": "カードが届く"
+    },
+    {
+      "from": "human",
+      "to": "page",
+      "label": "ボタンで開く"
+    }
+  ],
+  "inputs": {
+    "to": "ai",
+    "items": [
+      {
+        "y": 150,
+        "mark": {
+          "logo": "gmail.svg",
+          "w": 40,
+          "h": 30
+        },
+        "title": "依頼メール",
+        "sub": "Gmail"
+      },
+      {
+        "y": 270,
+        "title": "議事録・チャット",
+        "sub": "共通スキル"
+      },
+      {
+        "y": 390,
+        "title": "手入力・他プロジェクト",
+        "sub": "共通スキル"
+      }
+    ]
+  },
+  "outputs": {
+    "items": [
+      {
+        "y": 181,
+        "mark": {
+          "logo": "quire.svg",
+          "w": 100,
+          "h": 30
+        },
+        "title": "Quire タスク",
+        "sub": "期間・担当者つき",
+        "from": "page",
+        "label": "Quire API",
+        "label_dy": -56
+      },
+      {
+        "y": 300,
+        "title": "監査ログ",
+        "sub": "判断と結果の記録"
+      },
+      {
+        "y": 420,
+        "title": "育つルール",
+        "sub": "使うほど賢くなる"
+      }
+    ]
+  },
+  "callout": {
+    "text": [
+      "AI は下書きまで。決めるのは人。",
+      "判断の記録が台帳に残り、使うほど振り分けが賢くなる"
+    ]
+  }
+}
