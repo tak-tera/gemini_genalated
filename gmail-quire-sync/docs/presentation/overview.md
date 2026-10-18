@@ -65,7 +65,8 @@ AI は下書きまで。決めるのは人。判断の記録が台帳に残り�
 
 ## 図
 
-- `architecture.png`：アーキテクチャ（全体像。製品ロゴ・提供元つき）
+- `layered.png`：アーキテクチャ（レイヤー構成。台帳を中心に、AI・処理・人の層を示す）※メインの図
+- `architecture.png`：処理の流れに沿った全体像（レーン構成）
 - `technical.png`：技術構成（開発者・パワーユーザー向け。ランタイム・API・セキュリティ）
-- 図の元データは `*.json`。`tools/archdiagram_logo.py` で作り直せる
+- レーン構成の図は `*.json` を `tools/archdiagram_logo.py` で、レイヤー構成の図は `tools/layered_arch.py` で作り直せる
 - ロゴの出典は `logos/README.md`
