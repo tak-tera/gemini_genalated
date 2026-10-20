@@ -55,6 +55,7 @@ class Diagram:
             self.dirs.insert(0, os.path.join(spec_dir, spec["logo_dir"]))
         self.out = []
         self.geo = {}     # id -> (x, y, w, h)
+        self.badges = []
 
     # ---------- 部品 ----------
     def t(self, x, y, s, size=13, color=INK, weight="normal", anchor="start"):
@@ -112,6 +113,15 @@ class Diagram:
                   PAL[m.get("color", "gray")]["key"])
         return 90 if m["icon"] == "users" else size
 
+    def badge(self, x, y, n):
+        """作業の順番などを示す番号。最後にまとめて上に描く。"""
+        self.badges.append((x, y, str(n)))
+
+    def draw_badges(self):
+        for x, y, n in self.badges:
+            self.out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="14" fill="{INK}" stroke="{WHITE}" stroke-width="2.5"/>')
+            self.t(x, y + 5.5, n, 15, WHITE, "bold", "middle")
+
     def line(self, pts, dash=None, head_end=True, head_start=False, sw=1.8):
         d = " ".join(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(pts))
         ds = f' stroke-dasharray="{dash}"' if dash else ""
@@ -125,6 +135,8 @@ class Diagram:
         color = L.get("color", "teal")
         c = PAL[color]
         self.box(x, y, w, h, color, sw=2.2 if L.get("emphasis") else 1.6)
+        if "step" in L:
+            self.badge(x + 2, y + 2, L["step"])
         lx = x + 20
         size = min(44, h - 26)
         for m in L.get("marks", []):
@@ -158,6 +170,8 @@ class Diagram:
             color = it.get("color", "teal")
             c = PAL[color]
             self.box(bx, y, bw, h, color, sw=2.2 if it.get("emphasis") else 1.6)
+            if "step" in it:
+                self.badge(bx + 2, y + 2, it["step"])
             lx = bx + 16
             for m in it.get("marks", []):
                 lx += self.mark(m, lx, y + 14, 28, color) + 6
@@ -250,6 +264,7 @@ class Diagram:
             self.outputs(S["outputs"])
         if cal:
             self.callout(cal, body_bottom + 30)
+        self.draw_badges()
         o.append("</svg>")
         return "".join(o)
 
@@ -312,6 +327,8 @@ class Diagram:
             else:
                 self.icon(m["icon"], cx, y - 32, PAL[m.get("color", "gray")]["key"])
             self.t(cx, y - 1, it["title"], 13.5, INK, "bold", "middle")
+            if "step" in it:
+                self.badge(cx - 62, y - 44, it["step"])
             if it.get("sub"):
                 self.t(cx, y + 17, it["sub"], 11.5, SUB, "middle")
             self.line([(cx + 76, y - 30), (col, y - 30)], dash="5 4", head_end=False)
@@ -337,6 +354,8 @@ class Diagram:
             else:
                 self.icon(m["icon"], cx, y - 35, PAL[m.get("color", "gray")]["key"])
             self.t(cx, y - 1, it["title"], 13.5, INK, "bold", "middle")
+            if "step" in it:
+                self.badge(cx + 68 if "logo" in m else cx - 62, y - 44, it["step"])
             if it.get("sub"):
                 self.t(cx, y + 17, it["sub"], 11.5, SUB, "middle")
             if it.get("from"):
