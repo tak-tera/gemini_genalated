@@ -2,13 +2,14 @@
 
 /** 【手動で実行】トリガーを登録する（何度実行しても重複しない）。 */
 function installTriggers() {
-  const handlers = ['processPending', 'syncQuireMoves'];
+  const handlers = ['processPending', 'syncQuireMoves', 'refreshQuireSnapshot'];
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (handlers.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('processPending').timeBased().everyMinutes(5).create();
   ScriptApp.newTrigger('syncQuireMoves').timeBased().everyDays(1).atHour(7).create();
-  Logger.log('トリガーを登録しました（承認待ちの確認: 5分ごと / 移動の学習: 毎朝7時台）。');
+  ScriptApp.newTrigger('refreshQuireSnapshot').timeBased().everyHours(1).create();
+  Logger.log('トリガーを登録しました（承認待ちの確認: 5分ごと / 移動の学習: 毎朝7時台 / Quire のスナップショット: 毎時）。');
 }
 
 /** 【手動で実行】設定がそろっているか確認し、結果をログに出す。 */
@@ -36,6 +37,17 @@ function checkSetup() {
       + ' General の入れ先: ' + settings.generalProject);
   } catch (e) {
     results.push('NG   スプレッドシート: ' + e.message);
+  }
+
+  try {
+    const logHead = sheet_(SHEET.LOG).getRange(1, 1, 1, Object.keys(COL).length).getValues()[0];
+    results.push((String(logHead[COL.depNote - 1] || '') ? 'OK  ' : 'NG  ')
+      + ' 登録ログの列: W〜Z（セクション／先行タスク／後続タスク／依存メモ）の見出し');
+    const snap = getSnapshot_();
+    results.push((Object.keys(snap).length ? 'OK  ' : 'なし')
+      + ' Quireスナップショット: ' + Object.keys(snap).length + ' プロジェクト（なしなら refreshQuireSnapshot を実行）');
+  } catch (e) {
+    results.push('NG   セクション・依存関係: ' + e.message);
   }
 
   try {

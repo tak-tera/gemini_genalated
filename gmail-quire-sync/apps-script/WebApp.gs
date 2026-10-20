@@ -44,7 +44,7 @@ function submitEdit(messageId, action, sig, form) {
   if ((action !== 'edit' && action !== 'choose') || !verifyAction_(action, messageId, sig)) {
     throw new Error('リンクが無効です。');
   }
-  const clean = validateEditForm_(form, getProjects_(true));
+  const clean = validateEditForm_(form, getProjects_(true), messageId, getSnapshot_(), getLogEntries_());
 
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -74,7 +74,7 @@ function checkParts_(date, time, label) {
 }
 
 /** 編集ページから届いた内容を確かめ、使える形にそろえる。おかしな値があればエラーにする。 */
-function validateEditForm_(form, projects) {
+function validateEditForm_(form, projects, entryId, snapshot, entries) {
   if (!form || typeof form !== 'object') throw new Error('入力内容が読み取れませんでした。');
   const tasks = Array.isArray(form.tasks) ? form.tasks : [];
   if (!tasks.length) throw new Error('タスクを1件以上入力してください。');
@@ -94,13 +94,22 @@ function validateEditForm_(form, projects) {
     }
     const useStart = mode === 'period' ? start : { date: '', time: '' };
     const project = String((t && t.project) || '');
-    if (!findProjectByName_(project, projects)) throw new Error(n + '登録先が振り分けルールにありません。');
+    const proj = findProjectByName_(project, projects);
+    if (!proj) throw new Error(n + '登録先が振り分けルールにありません。');
+    const snap = projectSnapshot_(proj, snapshot);
+    const section = String((t && t.section) || '').trim();
+    if (section && !snap.sections.some(function (x) { return x.name === section; })) {
+      throw new Error(n + 'セクション「' + clip_(section, 60) + '」が登録先にありません。「Quire から最新を読み込む」を押して選び直してください。');
+    }
+    const deps = validateDeps_(t && t.deps, i, tasks.length, entryId, snap, entries, n);
     const priority = Number(t && t.priority);
     if (!PRIORITIES.some(function (p) { return p.value === priority; })) throw new Error(n + '優先度が正しくありません。');
     const note = String((t && t.note) || '').trim();
     if (note.length > 2000) throw new Error(n + 'メモは2000文字以内にしてください。');
     return {
-      name: name, project: project, priority: priority, note: note,
+      id: taskLogId_(entryId, i),
+      name: name, project: project, priority: priority, note: note, section: section,
+      preds: deps.preds, succs: deps.succs,
       quireStart: toQuireDateTime_(useStart.date, useStart.time),
       quireDue: toQuireDateTime_(end.date, end.time),
       startText: partsText_(useStart),
@@ -116,6 +125,56 @@ function validateEditForm_(form, projects) {
     }
   });
   return { tasks: cleanTasks, assignees: assignees };
+}
+
+/** 編集ページで分けたタスクの登録ログ ID。1件目は元の ID、2件目以降は「元の ID-e2」… */
+function taskLogId_(entryId, index) {
+  return index === 0 ? String(entryId) : String(entryId) + '-e' + (index + 1);
+}
+
+/**
+ * 依存関係の入力を確かめる。[{ kind: 'pred'|'succ', ref: '#12' | 'cand:ID' | 'new:番号' }]
+ * 既存タスクはスナップショットにある登録先のタスクだけ、候補は登録ログにあるものだけ受け付ける。
+ * 戻り値: { preds: [ref], succs: [ref] }（ref は parseRefs_ と同じ形）
+ */
+function validateDeps_(list, index, count, entryId, snap, entries, n) {
+  const out = { preds: [], succs: [] };
+  if (list === undefined || list === null) return out;
+  if (!Array.isArray(list) || list.length > MAX_DEPS * 2) throw new Error(n + '依存関係の指定が正しくありません。');
+  const self = taskLogId_(entryId, index);
+  const seen = {};
+  list.forEach(function (d) {
+    const kind = d && d.kind;
+    if (kind !== 'pred' && kind !== 'succ') throw new Error(n + '依存関係の種類が正しくありません。');
+    const raw = String((d && d.ref) || '');
+    let ref;
+    let m;
+    if ((m = raw.match(/^#(\d{1,9})$/))) {
+      const id = Number(m[1]);
+      if (!snap.tasks.some(function (x) { return x.id === id; })) {
+        throw new Error(n + '#' + id + ' は登録先の未完了タスクにありません。「Quire から最新を読み込む」を押して選び直してください。');
+      }
+      ref = { type: 'task', id: id };
+    } else if ((m = raw.match(/^cand:([A-Za-z0-9_\-]{1,120})$/))) {
+      if (m[1] === self || !entries.some(function (e) { return String(e.messageId) === m[1]; })) {
+        throw new Error(n + '依存関係の候補が登録ログにありません。');
+      }
+      ref = { type: 'cand', id: m[1] };
+    } else if ((m = raw.match(/^new:(\d)$/))) {
+      const k = Number(m[1]);
+      if (k === index || k >= count) throw new Error(n + '依存関係の相手（この画面のタスク）が正しくありません。');
+      ref = { type: 'cand', id: taskLogId_(entryId, k) };
+    } else {
+      throw new Error(n + '依存関係の相手が正しくありません。');
+    }
+    const key = ref.type + ':' + ref.id;
+    if (seen[key]) throw new Error(n + '同じタスクを依存関係に2回指定しています。');
+    seen[key] = true;
+    const target = kind === 'pred' ? out.preds : out.succs;
+    if (target.length >= MAX_DEPS) throw new Error(n + '依存関係は先・あとそれぞれ ' + MAX_DEPS + ' 件までです。');
+    target.push(ref);
+  });
+  return out;
 }
 
 /**
@@ -146,7 +205,8 @@ function decide_(messageId, approve, projectName) {
     updateLog_(entry.row, { status: STATUS.APPROVED });
     try {
       const result = registerEntry_(entry, projectName || String(entry.judgedProject));
-      return { title: '登録しました', detail: '登録先: ' + result.project.name, url: safeQuireUrl_(result.task.url), entry: entry };
+      const where = result.project.name + (result.section ? ' / ' + result.section : '');
+      return { title: '登録しました', detail: '登録先: ' + where, notes: result.notes, url: safeQuireUrl_(result.task.url), entry: entry };
     } catch (e) {
       updateLog_(entry.row, { status: STATUS.ERROR, reason: String(entry.reason) + ' / エラー: ' + e.message });
       return { title: '登録に失敗しました', detail: clip_(e.message, 300), entry: entry };
@@ -166,6 +226,7 @@ function resultHtml_(result) {
   let html = '<h1>' + escapeHtml_(result.title) + '</h1>';
   if (result.entry) html += '<p class="sub">' + escapeHtml_(clip_(result.entry.taskName || result.entry.subject, 200)) + '</p>';
   if (result.detail) html += '<p>' + escapeHtml_(result.detail) + '</p>';
+  if (result.notes && result.notes.length) html += '<p class="note">' + escapeHtml_(clip_(result.notes.join(' / '), 500)) + '</p>';
   if (result.url) html += '<p><a class="btn" href="' + escapeHtml_(result.url) + '" target="_blank">Quire で開く</a></p>';
   html += '<p class="note">このページは閉じてかまいません。</p>';
   return html;
@@ -178,7 +239,10 @@ function editResultHtml_(result) {
     result.created.forEach(function (c) {
       const url = safeQuireUrl_(c.task.url);
       parts.push('<li>' + (url ? '<a href="' + escapeHtml_(url) + '" target="_blank">' : '')
-        + escapeHtml_(c.form.name) + (url ? '</a>' : '') + '<br><span class="note">' + escapeHtml_(c.project.name) + '</span></li>');
+        + escapeHtml_(c.form.name) + (url ? '</a>' : '') + '<br><span class="note">'
+        + escapeHtml_(c.project.name + (c.section ? ' / ' + c.section.name : '')) + '</span>'
+        + (c.notes && c.notes.length ? '<br><span class="note">' + escapeHtml_(clip_(c.notes.join(' / '), 300)) + '</span>' : '')
+        + '</li>');
     });
     parts.push('</ul>');
   }
@@ -191,20 +255,37 @@ function editResultHtml_(result) {
 function editPage_(entry, action, sig) {
   const settings = getSettings_();
   const projects = getProjects_(true);
-  const selected = findProjectByName_(entry.judgedProject, projects) ? String(entry.judgedProject) : settings.generalProject;
+  const snapshot = getSnapshot_();
+  const entries = getLogEntries_();
+  const judgedOk = !!findProjectByName_(entry.judgedProject, projects);
+  const selected = judgedOk ? String(entry.judgedProject) : settings.generalProject;
+
+  // 依存関係の初期値（Claude の提案）。既存タスクの番号は判定プロジェクトのものなので、そのまま使えるときだけ
+  const deps = [];
+  [['pred', entry.predecessors], ['succ', entry.successors]].forEach(function (pair) {
+    parseRefs_(pair[1]).slice(0, MAX_DEPS).forEach(function (r) {
+      if (r.type === 'task' && judgedOk) deps.push({ kind: pair[0], ref: '#' + r.id });
+      if (r.type === 'cand' && r.id !== String(entry.messageId)) deps.push({ kind: pair[0], ref: 'cand:' + r.id });
+    });
+  });
+
   const data = {
     id: String(entry.messageId),
     action: action,
     sig: String(sig),
     projects: projects.map(function (p) { return p.name; }),
+    snap: snapshotForPage_(projects, snapshot),
+    cands: relatedCandidates_(entry, entries),
     priorities: PRIORITIES,
     assignees: settings.assignees.join('; '),
     max: MAX_TASKS_PER_EDIT,
+    maxDeps: MAX_DEPS,
     task: (function () {
       const s = defaultSchedule_(entry);
       return {
         name: clip_(entry.taskName || entry.subject, 200), project: selected, priority: 0, note: '', mode: 'period',
         startDate: s.start.date, startTime: s.start.time, endDate: s.end.date, endTime: s.end.time,
+        section: judgedOk ? String(entry.section || '') : '', deps: deps,
       };
     })(),
   };
@@ -228,36 +309,145 @@ function editPage_(entry, action, sig) {
     '</div>' +
     '<script>' +
     'var D=JSON.parse(' + jsString_(JSON.stringify(data)) + ');' +
-    'function el(t,a){var e=document.createElement(t);if(a)for(var k in a)e[k]=a[k];return e;}' +
-    'function field(label,input){var l=el("label");l.appendChild(document.createTextNode(label));l.appendChild(input);return l;}' +
-    'function pair(label,d,t){var w=el("div",{className:"pair"});w.appendChild(el("span",{className:"pair-label",textContent:label}));var r=el("div",{className:"pair-row"});r.appendChild(d);r.appendChild(t);w.appendChild(r);return w;}' +
-    'function addTask(t){var box=el("div",{className:"task"});' +
-    ' var name=el("input",{className:"f-name",maxLength:200,value:t.name||""});' +
-    ' var mode=el("select",{className:"f-mode"});[["period","期間（開始〜終了）"],["due","期日のみ"]].forEach(function(m){var o=el("option",{value:m[0],textContent:m[1]});if(m[0]===(t.mode||"period"))o.selected=true;mode.appendChild(o);});' +
-    ' var sd=el("input",{className:"f-sd",type:"date",value:t.startDate||""}),st=el("input",{className:"f-st",type:"time",value:t.startTime||""});' +
-    ' var ed=el("input",{className:"f-ed",type:"date",value:t.endDate||""}),et=el("input",{className:"f-et",type:"time",value:t.endTime||""});' +
-    ' var startRow=pair("開始",sd,st),endRow=pair("終了",ed,et);' +
-    ' function sync(){var p=mode.value==="period";startRow.style.display=p?"":"none";endRow.firstChild.textContent=p?"終了（日付・時刻は任意）":"期日（時刻は任意）";}' +
-    ' mode.onchange=sync;' +
-    ' var pj=el("select",{className:"f-project"});D.projects.forEach(function(p){var o=el("option",{value:p,textContent:p});if(p===t.project)o.selected=true;pj.appendChild(o);});' +
-    ' var pr=el("select",{className:"f-priority"});D.priorities.forEach(function(p){var o=el("option",{value:String(p.value),textContent:p.label});if(p.value===t.priority)o.selected=true;pr.appendChild(o);});' +
-    ' var note=el("textarea",{className:"f-note",maxLength:2000,rows:3,value:t.note||""});' +
-    ' var rm=el("button",{type:"button",className:"link",textContent:"このタスクを削除"});rm.onclick=function(){if(document.querySelectorAll(".task").length>1)box.remove();};' +
-    ' [field("タスク名",name),field("日程",mode),startRow,endRow,field("登録先",pj),field("優先度",pr),field("メモ（説明の先頭に入ります）",note)].forEach(function(f){box.appendChild(f);});sync();' +
-    ' box.appendChild(rm);document.getElementById("tasks").appendChild(box);}' +
-    'document.getElementById("assignees").value=D.assignees;' +
-    'addTask(D.task);' +
-    'document.getElementById("add").onclick=function(){if(document.querySelectorAll(".task").length>=D.max){alert("一度に登録できるのは"+D.max+"件までです");return;}addTask({project:D.task.project,priority:0,mode:"period",startDate:D.task.startDate});};' +
-    'document.getElementById("go").onclick=function(){var b=this;' +
-    ' var tasks=[].map.call(document.querySelectorAll(".task"),function(x){return{name:x.querySelector(".f-name").value,mode:x.querySelector(".f-mode").value,startDate:x.querySelector(".f-sd").value,startTime:x.querySelector(".f-st").value,endDate:x.querySelector(".f-ed").value,endTime:x.querySelector(".f-et").value,project:x.querySelector(".f-project").value,priority:Number(x.querySelector(".f-priority").value),note:x.querySelector(".f-note").value};});' +
-    ' b.disabled=true;b.textContent="登録しています…";' +
-    ' google.script.run' +
-    '  .withSuccessHandler(function(html){document.getElementById("main").innerHTML=html;})' +
-    '  .withFailureHandler(function(e){b.disabled=false;b.textContent="登録する";alert(e.message);})' +
-    '  .submitEdit(D.id,D.action,D.sig,{assignees:document.getElementById("assignees").value,tasks:tasks});};' +
+    EDIT_PAGE_JS +
     '</script>';
   return page_('内容を直して登録', html);
 }
+
+/** 編集ページに渡すスナップショット。{ プロジェクト名: { fetchedAt, sections: [名前], tasks: [{ id, name, due }] } } */
+function snapshotForPage_(projects, snapshot) {
+  const out = {};
+  projects.forEach(function (p) {
+    const s = projectSnapshot_(p, snapshot);
+    out[p.name] = structureForPage_(s);
+  });
+  return out;
+}
+
+function structureForPage_(s) {
+  const tasks = s.tasks.slice().sort(function (a, b) {
+    // 期日が近いものを上に。期日なしは番号の新しい順
+    if (a.due && b.due) return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
+    if (a.due || b.due) return a.due ? -1 : 1;
+    return b.id - a.id;
+  });
+  return {
+    fetchedAt: s.fetchedAt || '',
+    sections: s.sections.map(function (x) { return x.name; }),
+    tasks: tasks.map(function (x) { return { id: x.id, name: clip_(x.name, 80), due: String(x.due || '').slice(0, 10) }; }),
+  };
+}
+
+/** 依存関係の相手に選べるほかの候補（同じメールから作った候補と、提案に出てくる候補）。 */
+function relatedCandidates_(entry, entries) {
+  const self = String(entry.messageId);
+  const base = self.replace(/-e?\d+$/, '');
+  const referred = parseRefs_(entry.predecessors).concat(parseRefs_(entry.successors))
+    .filter(function (r) { return r.type === 'cand'; }).map(function (r) { return r.id; });
+  return entries.filter(function (e) {
+    const id = String(e.messageId);
+    if (id === self || e.status === STATUS.REJECTED) return false;
+    return id.replace(/-e?\d+$/, '') === base || referred.indexOf(id) >= 0;
+  }).slice(0, 20).map(function (e) {
+    return { id: String(e.messageId), name: clip_(e.taskName || e.subject, 80),
+      project: String(e.currentProject || e.judgedProject), status: String(e.status) };
+  });
+}
+
+/** 編集ページの「Quire から最新を読み込む」。そのプロジェクトのセクションと未完了タスクを読み直して返す。 */
+function loadProjectStructure(messageId, action, sig, projectName) {
+  if ((action !== 'edit' && action !== 'choose') || !verifyAction_(action, messageId, sig)) {
+    throw new Error('リンクが無効です。');
+  }
+  const project = findProjectByName_(projectName, getProjects_(true));
+  if (!project) throw new Error('登録先が振り分けルールにありません。');
+  const s = refreshProjectSnapshot_(project);
+  return structureForPage_(s);
+}
+
+// 編集ページのスクリプト。D（サーバーから渡すデータ）を使う。
+const EDIT_PAGE_JS = [
+  'var uid=0;',
+  'function el(t,a){var e=document.createElement(t);if(a)for(var k in a)e[k]=a[k];return e;}',
+  'function field(label,input){var l=el("label");l.appendChild(document.createTextNode(label));l.appendChild(input);return l;}',
+  'function pair(label,d,t){var w=el("div",{className:"pair"});w.appendChild(el("span",{className:"pair-label",textContent:label}));var r=el("div",{className:"pair-row"});r.appendChild(d);r.appendChild(t);w.appendChild(r);return w;}',
+  'function boxes(){return [].slice.call(document.querySelectorAll(".task"));}',
+  'function snapOf(p){return D.snap[p]||{fetchedAt:"",sections:[],tasks:[]};}',
+  'function refLabel(ref,box){',
+  ' if(ref.indexOf("box:")===0){var i=boxes().findIndex(function(b){return b._uid===ref.slice(4);});if(i<0)return null;return "この画面の"+(i+1)+"件目: "+(boxes()[i].querySelector(".f-name").value||"(名前なし)");}',
+  ' if(ref.indexOf("cand:")===0){var c=D.cands.filter(function(x){return x.id===ref.slice(5);})[0];return "ほかの候補: "+(c?c.name+"（"+c.project+"・"+c.status+"）":ref.slice(5));}',
+  ' var n=Number(ref.slice(1)),t=snapOf(box._pj.value).tasks.filter(function(x){return x.id===n;})[0];return "#"+n+" "+(t?t.name:"(一覧にありません)");}',
+  'function renderDeps(box){var ul=box._deps;ul.textContent="";',
+  ' box._depList=box._depList.filter(function(d){return refLabel(d.ref,box)!==null;});',
+  ' box._depList.forEach(function(d,i){var li=el("li");li.appendChild(el("span",{className:"tag "+d.kind,textContent:d.kind==="pred"?"先にやる":"あとに続く"}));',
+  '  li.appendChild(document.createTextNode(" "+refLabel(d.ref,box)+" "));',
+  '  var x=el("button",{type:"button",className:"link",textContent:"外す"});x.onclick=function(){box._depList.splice(i,1);renderDeps(box);};li.appendChild(x);ul.appendChild(li);});',
+  ' if(!box._depList.length)ul.appendChild(el("li",{className:"note",textContent:"依存関係なし"}));}',
+  'function fillSections(box,keep){var s=box._sec,cur=keep!==undefined?keep:s.value;s.textContent="";',
+  ' s.appendChild(el("option",{value:"",textContent:"（セクションなし：プロジェクト直下）"}));',
+  ' snapOf(box._pj.value).sections.forEach(function(n){var o=el("option",{value:n,textContent:n});if(n===cur)o.selected=true;s.appendChild(o);});',
+  ' var f=snapOf(box._pj.value).fetchedAt;box._when.textContent=f?"Quire の内容: "+f+" 時点":"Quire の内容をまだ読み込んでいません";}',
+  'function fillTargets(box){var s=box._tgt,q=box._q.value.trim().toLowerCase();s.textContent="";',
+  ' function add(g,v,t){if(q&&t.toLowerCase().indexOf(q)<0)return;g.appendChild(el("option",{value:v,textContent:t}));}',
+  ' var g1=el("optgroup",{label:"この画面のタスク"});boxes().forEach(function(b,i){if(b!==box)add(g1,"box:"+b._uid,(i+1)+"件目: "+(b.querySelector(".f-name").value||"(名前なし)"));});',
+  ' var g2=el("optgroup",{label:"ほかの候補"});D.cands.forEach(function(c){add(g2,"cand:"+c.id,c.name+"（"+c.project+"・"+c.status+"）");});',
+  ' var g3=el("optgroup",{label:"既存タスク（"+box._pj.value+"）"});snapOf(box._pj.value).tasks.forEach(function(t){add(g3,"#"+t.id,"#"+t.id+" "+t.name+(t.due?"（"+t.due+"）":""));});',
+  ' [g1,g2,g3].forEach(function(g){if(g.children.length)s.appendChild(g);});',
+  ' if(!s.children.length)s.appendChild(el("option",{value:"",textContent:"選べるタスクがありません"}));}',
+  'function onProjectChange(box){var before=box._sec.value;fillSections(box,before);',
+  ' var lost=box._depList.filter(function(d){return d.ref.charAt(0)==="#";}).length;',
+  ' box._depList=box._depList.filter(function(d){return d.ref.charAt(0)!=="#";});',
+  ' var msgs=[];if(before&&box._sec.value!==before)msgs.push("セクション「"+before+"」はこのプロジェクトに無いので外しました");',
+  ' if(lost)msgs.push("前のプロジェクトの既存タスクとの依存関係（"+lost+"件）を外しました");',
+  ' box._msg.textContent=msgs.join("。");renderDeps(box);fillTargets(box);}',
+  'function addTask(t){var box=el("div",{className:"task"});box._uid=String(++uid);box._depList=(t.deps||[]).slice();',
+  ' var name=el("input",{className:"f-name",maxLength:200,value:t.name||""});name.oninput=function(){boxes().forEach(function(b){if(b!==box){renderDeps(b);fillTargets(b);}});};',
+  ' var mode=el("select",{className:"f-mode"});[["period","期間（開始〜終了）"],["due","期日のみ"]].forEach(function(m){var o=el("option",{value:m[0],textContent:m[1]});if(m[0]===(t.mode||"period"))o.selected=true;mode.appendChild(o);});',
+  ' var sd=el("input",{className:"f-sd",type:"date",value:t.startDate||""}),st=el("input",{className:"f-st",type:"time",value:t.startTime||""});',
+  ' var ed=el("input",{className:"f-ed",type:"date",value:t.endDate||""}),et=el("input",{className:"f-et",type:"time",value:t.endTime||""});',
+  ' var startRow=pair("開始",sd,st),endRow=pair("終了",ed,et);',
+  ' function sync(){var p=mode.value==="period";startRow.style.display=p?"":"none";endRow.firstChild.textContent=p?"終了（日付・時刻は任意）":"期日（時刻は任意）";}',
+  ' mode.onchange=sync;',
+  ' var pj=el("select",{className:"f-project"});D.projects.forEach(function(p){var o=el("option",{value:p,textContent:p});if(p===t.project)o.selected=true;pj.appendChild(o);});box._pj=pj;',
+  ' var sec=el("select",{className:"f-section"});box._sec=sec;',
+  ' box._when=el("span",{className:"note"});box._msg=el("p",{className:"warn"});',
+  ' var reload=el("button",{type:"button",className:"btn sub-btn small",textContent:"Quire から最新を読み込む"});',
+  ' reload.onclick=function(){var p=pj.value;reload.disabled=true;reload.textContent="読み込み中…";',
+  '  google.script.run.withSuccessHandler(function(s){D.snap[p]=s;reload.disabled=false;reload.textContent="Quire から最新を読み込む";boxes().forEach(function(b){if(b._pj.value===p){fillSections(b);renderDeps(b);fillTargets(b);}});})',
+  '  .withFailureHandler(function(e){reload.disabled=false;reload.textContent="Quire から最新を読み込む";alert(e.message);})',
+  '  .loadProjectStructure(D.id,D.action,D.sig,p);};',
+  ' pj.onchange=function(){onProjectChange(box);};',
+  ' var pr=el("select",{className:"f-priority"});D.priorities.forEach(function(p){var o=el("option",{value:String(p.value),textContent:p.label});if(p.value===t.priority)o.selected=true;pr.appendChild(o);});',
+  ' var note=el("textarea",{className:"f-note",maxLength:2000,rows:3,value:t.note||""});',
+  ' box._deps=el("ul",{className:"deps"});',
+  ' var kind=el("select");[["pred","先にやる（このタスクより前）"],["succ","あとに続く（このタスクより後）"]].forEach(function(k){kind.appendChild(el("option",{value:k[0],textContent:k[1]}));});',
+  ' box._q=el("input",{placeholder:"タスク名で絞り込む"});box._q.oninput=function(){fillTargets(box);};',
+  ' box._tgt=el("select");',
+  ' var addDep=el("button",{type:"button",className:"btn sub-btn small",textContent:"依存関係を追加"});',
+  ' addDep.onclick=function(){var r=box._tgt.value;if(!r)return;',
+  '  if(box._depList.some(function(d){return d.ref===r;})){alert("同じタスクはすでに追加しています");return;}',
+  '  if(box._depList.filter(function(d){return d.kind===kind.value;}).length>=D.maxDeps){alert("依存関係は先・あとそれぞれ"+D.maxDeps+"件までです");return;}',
+  '  box._depList.push({kind:kind.value,ref:r});renderDeps(box);};',
+  ' var depBox=el("div",{className:"dep-box"});depBox.appendChild(el("span",{className:"pair-label",textContent:"依存関係（同じプロジェクトのタスクとつなぎます）"}));',
+  ' [box._deps,kind,box._q,box._tgt,addDep].forEach(function(x){depBox.appendChild(x);});',
+  ' var rm=el("button",{type:"button",className:"link",textContent:"このタスクを削除"});rm.onclick=function(){if(boxes().length>1){box.remove();boxes().forEach(function(b){renderDeps(b);fillTargets(b);});}};',
+  ' var where=el("div");[field("登録先",pj),field("セクション",sec)].forEach(function(f){where.appendChild(f);});where.appendChild(box._when);where.appendChild(document.createTextNode(" "));where.appendChild(reload);where.appendChild(box._msg);',
+  ' [field("タスク名",name),field("日程",mode),startRow,endRow,where,depBox,field("優先度",pr),field("メモ（説明の先頭に入ります）",note)].forEach(function(f){box.appendChild(f);});sync();',
+  ' box.appendChild(rm);document.getElementById("tasks").appendChild(box);',
+  ' fillSections(box,t.section||"");boxes().forEach(function(b){renderDeps(b);fillTargets(b);});',
+  ' if(t.section&&sec.value!==t.section)box._msg.textContent="提案されたセクション「"+t.section+"」が一覧にありません。「Quire から最新を読み込む」を押してください";}',
+  'document.getElementById("assignees").value=D.assignees;',
+  'addTask(D.task);',
+  'document.getElementById("add").onclick=function(){if(boxes().length>=D.max){alert("一度に登録できるのは"+D.max+"件までです");return;}addTask({project:D.task.project,section:boxes()[0]._sec.value,priority:0,mode:"period",startDate:D.task.startDate});};',
+  'document.getElementById("go").onclick=function(){var b=this,list=boxes();',
+  ' var tasks=list.map(function(x){return{name:x.querySelector(".f-name").value,mode:x.querySelector(".f-mode").value,startDate:x.querySelector(".f-sd").value,startTime:x.querySelector(".f-st").value,endDate:x.querySelector(".f-ed").value,endTime:x.querySelector(".f-et").value,project:x._pj.value,section:x._sec.value,priority:Number(x.querySelector(".f-priority").value),note:x.querySelector(".f-note").value,',
+  '  deps:x._depList.map(function(d){if(d.ref.indexOf("box:")!==0)return d;var i=list.findIndex(function(y){return y._uid===d.ref.slice(4);});return i<0?null:{kind:d.kind,ref:"new:"+i};}).filter(Boolean)};});',
+  ' b.disabled=true;b.textContent="登録しています…";',
+  ' google.script.run',
+  '  .withSuccessHandler(function(html){document.getElementById("main").innerHTML=html;})',
+  '  .withFailureHandler(function(e){b.disabled=false;b.textContent="登録する";alert(e.message);})',
+  '  .submitEdit(D.id,D.action,D.sig,{assignees:document.getElementById("assignees").value,tasks:tasks});};',
+].join('\n');
 
 /** スクリプト内に埋め込む文字列。</script> などで抜け出せないよう < > & をエスケープする。 */
 function jsString_(value) {
@@ -279,6 +469,9 @@ function page_(title, body) {
     '.pair{margin:0 0 12px}.pair-label{display:block;font-size:14px;color:#374151}' +
     '.pair-row{display:flex;gap:8px}.pair-row input{margin:4px 0 0}.pair-row input[type=date]{flex:3}.pair-row input[type=time]{flex:2}' +
     'ul{padding-left:20px}li{margin:8px 0}' +
+    '.dep-box{background:#f9fafb;border-radius:8px;padding:10px;margin:0 0 12px}.deps{margin:4px 0 8px}' +
+    '.tag{display:inline-block;font-size:12px;border-radius:4px;padding:0 6px;color:#fff}.tag.pred{background:#0f766e}.tag.succ{background:#7c3aed}' +
+    '.warn{color:#b45309;font-size:13px;margin:4px 0 12px}.btn.small{font-size:14px;padding:8px 12px}' +
     '.btn{display:inline-block;background:#0f766e;color:#fff;border:0;border-radius:8px;padding:12px 18px;' +
     'font-size:16px;text-decoration:none}.btn:disabled{opacity:.6}' +
     '</style>';

@@ -78,8 +78,12 @@ function quireFetch_(method, path, body) {
   throw new Error('Quire API のレート制限が続いています。時間をおいて再実行してください。');
 }
 
-/** プロジェクトにタスクを作る。projectId はプロジェクトの ID（URL の /w/ の後ろ）。"-" は個人 Inbox。 */
-function quireCreateTask_(projectId, task) {
+/**
+ * プロジェクトにタスクを作る。projectId はプロジェクトの ID（URL の /w/ の後ろ）。"-" は個人 Inbox。
+ * parentOid（セクションなど）を渡すと、その下に作る。
+ */
+function quireCreateTask_(projectId, task, parentOid) {
+  if (parentOid) return quireFetch_('post', '/task/' + encodeURIComponent(parentOid), task);
   return quireFetch_('post', '/task/id/' + encodeURIComponent(projectId), task);
 }
 
@@ -96,7 +100,8 @@ function projectIdFromTaskUrl_(url) {
 /**
  * 登録ログの1行を、判定どおりの内容で Quire に登録する。
  * projectName を省略すると判定プロジェクトに入れる。
- * 戻り値: { task, project }
+ * セクションと依存関係は、判定どおりのプロジェクトに入れるときだけ使う（番号やセクションはプロジェクトごとのため）。
+ * 戻り値: { task, project, notes }
  */
 function registerEntry_(entry, projectName) {
   const settings = getSettings_();
@@ -107,13 +112,25 @@ function registerEntry_(entry, projectName) {
     throw new Error('登録先プロジェクト「' + (projectName || entry.judgedProject) + '」が振り分けルールにありません。');
   }
 
+  const notes = [];
+  const sameProject = project.name === String(entry.judgedProject);
+  const hasStructure = entry.section || entry.predecessors || entry.successors;
+  if (hasStructure && !sameProject) notes.push('登録先が判定と違うため、セクション・依存関係は使いませんでした');
+
+  let section = null;
+  if (sameProject && entry.section) {
+    section = findSection_(project, entry.section);
+    if (!section) notes.push('セクション「' + clip_(entry.section, 60) + '」が見つからないため、プロジェクト直下に登録');
+  }
+
   const schedule = defaultSchedule_(entry);
-  const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
+  const created = createTaskInSection_(project, section, buildTaskBody_(entry, settings, {
     name: entry.taskName || entry.subject,
     start: toQuireDateTime_(schedule.start.date, schedule.start.time),
     due: toQuireDateTime_(schedule.end.date, schedule.end.time),
     assignees: settings.assignees,
-  }), settings);
+  }), settings, notes);
+  const task = created.task;
 
   const updates = {
     start: partsText_(schedule.start),
@@ -121,6 +138,7 @@ function registerEntry_(entry, projectName) {
     taskUrl: safeQuireUrl_(task.url),
     taskOid: task.oid || '',
     currentProject: project.name,
+    section: created.section ? created.section.name : '',
   };
   // 判定と違うプロジェクトを選んだら、その送信者をルールに覚えさせる
   if (shouldLearn_(entry, [project], settings)) {
@@ -128,28 +146,48 @@ function registerEntry_(entry, projectName) {
     updates.learned = true;
   }
   updateLog_(entry.row, updates);
-  return { task: task, project: project };
+
+  // 依存関係。失敗してもタスクの登録は成功として扱い、結果をメモに残す
+  try {
+    const entries = getLogEntries_();
+    const preds = sameProject ? parseRefs_(entry.predecessors).slice(0, MAX_DEPS) : [];
+    const succs = sameProject ? parseRefs_(entry.successors).slice(0, MAX_DEPS) : [];
+    if (preds.length || succs.length) {
+      notes.push.apply(notes, linkDependencies_(entry.messageId, task, project, preds, succs, entries));
+    }
+    // 自分の指定でつないだ相手は除いて、自分を待っている候補をつなぐ
+    linkWaiting_(entry.messageId, task, project, entries, candIds_(preds.concat(succs)));
+  } catch (e) {
+    notes.push('依存関係の処理でエラー: ' + clip_(e.message, 100));
+  }
+  if (notes.length) updateLog_(entry.row, { depNote: clip_(notes.join(' / '), 500) });
+  return { task: task, project: project, section: created.section ? created.section.name : '', notes: notes };
 }
 
 /**
  * 編集ページで直した内容で登録する。1件目は元の行を更新し、2件目以降は登録ログに行を追加する。
- * form は validateEditForm_ を通したもの: { assignees: [...], tasks: [{ name, due, project, priority, note }] }
- * 戻り値: { created: [{ task, project }], error: エラー文 or '' }
+ * form は validateEditForm_ を通したもの:
+ *   { assignees: [...], tasks: [{ id, name, project, section, preds, succs, priority, note, ... }] }
+ * 戻り値: { created: [{ task, project, form, notes }], error: エラー文 or '' }
  */
 function registerEditedEntry_(entry, form) {
   const settings = getSettings_();
   const projects = getProjects_(false);
+  const snapshot = getSnapshot_();
   const created = [];
   let error = '';
 
   for (let i = 0; i < form.tasks.length; i++) {
     const t = form.tasks[i];
     const project = findProjectByName_(t.project, projects);
+    const notes = [];
     try {
-      const task = createTaskWithFallback_(project, buildTaskBody_(entry, settings, {
+      const section = t.section ? findSection_(project, t.section, snapshot) : null;
+      if (t.section && !section) notes.push('セクション「' + clip_(t.section, 60) + '」が見つからないため、プロジェクト直下に登録');
+      const c = createTaskInSection_(project, section, buildTaskBody_(entry, settings, {
         name: t.name, start: t.quireStart, due: t.quireDue, priority: t.priority, note: t.note, assignees: form.assignees,
-      }), settings);
-      created.push({ task: task, project: project, form: t });
+      }), settings, notes);
+      created.push({ task: c.task, project: project, form: t, section: c.section, notes: notes });
     } catch (e) {
       error = (i + 1) + '件目の登録に失敗しました: ' + e.message;
       break;
@@ -168,14 +206,38 @@ function registerEditedEntry_(entry, form) {
       taskUrl: safeQuireUrl_(c.task.url),
       taskOid: c.task.oid || '',
       currentProject: c.project.name,
+      section: c.section ? c.section.name : '',
+      predecessors: refsText_(c.form.preds, c.project, snapshot),
+      successors: refsText_(c.form.succs, c.project, snapshot),
+      depNote: '',
     };
     if (learn) values.learned = true;
     if (i === 0) {
       updateLog_(entry.row, values);
     } else {
-      appendLogCopy_(entry, String(entry.messageId) + '-e' + (i + 1), values);
+      appendLogCopy_(entry, c.form.id, values);
     }
   });
+
+  // 全件を登録ログに書いてから依存関係をつなぐ（同じ画面で作ったタスクどうしもつなげるように）
+  if (created.length) {
+    const batch = created.map(function (c) { return c.form.id; });
+    let entries = getLogEntries_();
+    created.forEach(function (c) {
+      try {
+        c.notes.push.apply(c.notes, linkDependencies_(c.form.id, c.task, c.project,
+          c.form.preds, c.form.succs, entries));
+        linkWaiting_(c.form.id, c.task, c.project, entries, batch.concat(candIds_(c.form.preds.concat(c.form.succs))));
+      } catch (e) {
+        c.notes.push('依存関係の処理でエラー: ' + clip_(e.message, 100));
+      }
+    });
+    entries = getLogEntries_();
+    created.forEach(function (c) {
+      const row = entries.filter(function (e) { return String(e.messageId) === c.form.id; })[0];
+      if (row && c.notes.length) updateLog_(row.row, { depNote: clip_(c.notes.join(' / '), 500) });
+    });
+  }
 
   if (error) {
     const note = created.length ? '（' + created.length + '件は登録済み）' : '';
@@ -183,6 +245,18 @@ function registerEditedEntry_(entry, form) {
     updateLog_(entry.row, { reason: clip_(String(entry.reason) + ' / ' + error + note, 500) });
   }
   return { created: created, error: error };
+}
+
+/** セクションの下にタスクを作る。セクションに作れなければプロジェクト直下に作り、notes に残す。 */
+function createTaskInSection_(project, section, body, settings, notes) {
+  if (section) {
+    try {
+      return { task: createTaskWithFallback_(project, body, settings, section.oid), section: section };
+    } catch (e) {
+      notes.push('セクション「' + clip_(section.name, 60) + '」に入れられず、プロジェクト直下に登録（' + clip_(e.message, 80) + '）');
+    }
+  }
+  return { task: createTaskWithFallback_(project, body, settings, ''), section: null };
 }
 
 /**
@@ -211,15 +285,15 @@ function buildTaskBody_(entry, settings, opts) {
 }
 
 /** タスクを作る。タグが無いなどで失敗したときは、タグを外してタイトルに印を付けて作り直す。 */
-function createTaskWithFallback_(project, body, settings) {
+function createTaskWithFallback_(project, body, settings, parentOid) {
   try {
-    return quireCreateTask_(project.id, body);
+    return quireCreateTask_(project.id, body, parentOid);
   } catch (e) {
     if (!body.tags) throw e;
     const retry = JSON.parse(JSON.stringify(body));
     delete retry.tags;
     retry.name = clip_('[' + settings.newProjectTag + '] ' + retry.name, 200);
-    return quireCreateTask_(project.id, retry);
+    return quireCreateTask_(project.id, retry, parentOid);
   }
 }
 

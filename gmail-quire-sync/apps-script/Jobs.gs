@@ -2,6 +2,7 @@
  * 時間主導トリガーで動く処理。
  *  - processPending: 5分ごと。承認待ちの行を Chat の Webhook で確認に出す（確認オフなら直接登録）
  *  - syncQuireMoves: 毎朝。Quire で移動されたタスクを調べ、送信者をルールに覚えさせる
+ *  - refreshQuireSnapshot: 毎時。セクションと未完了タスクを「Quireスナップショット」に写す（Structure.gs）
  */
 
 function processPending() {
@@ -10,7 +11,8 @@ function processPending() {
   try {
     const settings = getSettings_();
     // 1回に処理する件数に上限を設け、想定外に大量の行が書き込まれても一度に流れないようにする
-    const pending = getLogEntries_().filter(function (e) {
+    const entries = getLogEntries_();
+    const pending = entries.filter(function (e) {
       return e.status === STATUS.PENDING && !e.notifiedAt;
     }).slice(0, MAX_PER_RUN);
     if (!pending.length) return;
@@ -27,13 +29,14 @@ function processPending() {
     }
 
     const projects = getProjects_(true);
+    const snapshot = getSnapshot_();
     pending.forEach(function (entry) {
-      const selected = findProjectByName_(entry.judgedProject, projects)
-        ? String(entry.judgedProject) : settings.generalProject;
+      const project = findProjectByName_(entry.judgedProject, projects);
+      const selected = project ? String(entry.judgedProject) : settings.generalProject;
       try {
         const message = sendToChat_({
           text: 'Quire 登録の確認: ' + clip_(entry.subject, 100),
-          cardsV2: [approvalCard_(entry, selected)],
+          cardsV2: [approvalCard_(entry, selected, entries, project, snapshot)],
         });
         updateLog_(entry.row, { notifiedAt: now_(), chatMessage: message.name || '' });
       } catch (e) {
