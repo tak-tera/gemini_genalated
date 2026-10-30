@@ -68,8 +68,11 @@ function handleIntake_(e) {
 
     const sender = clip_(data.sender || data.from || '', 200);
     const subject = clip_(data.subject || '', 300);
-    const receivedAt = clip_(data.received_at || data.receivedAt || now_(), 30);
+    const receivedAt = receivedText_(data.received_at || data.receivedAt);
     const baseId = baseId_(data, sender, subject, receivedAt);
+    // リンクが「…#all/」で終わっていたら（ID の変数が次の行に分かれた場合など）、メール ID を足す
+    let gmailUrl = String(data.gmail_url || data.gmailUrl || '').trim();
+    if (/\/$/.test(gmailUrl) && /^[A-Za-z0-9]{6,40}$/.test(String(data.message_id || ''))) gmailUrl += data.message_id;
 
     const rows = [];
     tasks.forEach(function (t, i) {
@@ -88,7 +91,7 @@ function handleIntake_(e) {
       row[8] = route.confidence;                                    // I 確信度
       row[9] = text_(clip_(route.reason, 300));                     // J 判定理由
       row[10] = '承認待ち';                                          // K ステータス
-      row[14] = safeGmailUrl_(data.gmail_url || data.gmailUrl);     // O Gmail URL
+      row[14] = safeGmailUrl_(gmailUrl);                            // O Gmail URL
       row[15] = route.newProject;                                   // P 新規PJ候補
       row[19] = text_(clip_(t.summary || data.summary || '', 1000)); // T 要約
       row[20] = dateText_(t.start);                                 // U 開始日時
@@ -258,6 +261,15 @@ function dateText_(v) {
 function safeGmailUrl_(url) {
   const s = String(url || '');
   return s.indexOf('https://mail.google.com/') === 0 ? clip_(s, 500) : '';
+}
+
+/** 受信日時を「yyyy-MM-dd HH:mm」（日本時間）にそろえる。読めなければ今の時刻。 */
+function receivedText_(v) {
+  const s = String(v || '').trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s)) return s;
+  const d = s ? new Date(s) : null;
+  if (d && !isNaN(d)) return Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm');
+  return now_();
 }
 
 function now_() {
