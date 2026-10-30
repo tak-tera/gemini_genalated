@@ -48,14 +48,14 @@ function handleIntake_(e) {
 
   const token = String(data.token || params.key || '');
   if (!checkToken_(token)) return { ok: false, error: 'unauthorized' };
-  if (!underRateLimit_()) return { ok: false, error: 'rate_limited' };
-
+  // タスクが無いメールは何もしない（Studio 側で条件分岐をせず、毎回送ってよい）
   if (data.is_task === false || String(data.is_task).toLowerCase() === 'false') {
     return { ok: true, added: 0, note: 'not a task' };
   }
   let tasks = Array.isArray(data.tasks) ? data.tasks : (data.task_name || data.name ? [data] : []);
   tasks = tasks.filter(function (t) { return t && (t.task_name || t.name); }).slice(0, INTAKE.MAX_TASKS);
   if (!tasks.length) return { ok: true, added: 0, note: 'no tasks' };
+  if (!underRateLimit_()) return { ok: false, error: 'rate_limited' };
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -217,11 +217,25 @@ function route_(sender, t, projects, settings) {
   const m = String(sender).match(/<([^>]+)>/);
   const address = (m ? m[1] : String(sender)).trim().toLowerCase();
   const domain = address.split('@')[1] || '';
-  const byRule = projects.filter(function (p) {
-    return p.senders.indexOf(address) >= 0 || (domain && p.senders.indexOf(domain) >= 0);
-  })[0];
-  if (byRule) {
-    return { project: byRule.name, method: 'ルール', confidence: 1, reason: '送信元が振り分けルールに一致（Studio）', newProject: '' };
+  // アドレスの一致を優先し、無ければドメイン（下位ドメインも含む。tohoku.ac.jp に grp.tohoku.ac.jp も一致）
+  const matchBy = function (test) {
+    return projects.filter(function (p) { return p.senders.some(test); });
+  };
+  let matched = matchBy(function (s) { return s === address; });
+  if (!matched.length && domain) {
+    matched = matchBy(function (s) {
+      return s.indexOf('@') < 0 && (domain === s || domain.slice(-(s.length + 1)) === '.' + s);
+    });
+  }
+  const wantedName = String(t.project || '').trim();
+  if (matched.length === 1) {
+    return { project: matched[0].name, method: 'ルール', confidence: 1, reason: '送信元が振り分けルールに一致（Studio）', newProject: '' };
+  }
+  // 複数のプロジェクトに一致したら、その中から Gemini が選んだものを使う
+  const pick = matched.filter(function (p) { return p.name === wantedName; })[0];
+  if (pick) {
+    return { project: pick.name, method: 'AI', confidence: Math.max(0.8, Number(t.confidence) || 0),
+      reason: '送信元が複数のプロジェクトに一致し、Gemini（Studio）が選択: ' + String(t.reason || ''), newProject: '' };
   }
   const wanted = String(t.project || '').trim();
   const conf = Math.max(0, Math.min(1, Number(t.confidence) || 0));
