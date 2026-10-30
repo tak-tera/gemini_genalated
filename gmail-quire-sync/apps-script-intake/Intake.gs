@@ -96,6 +96,12 @@ function handleIntake_(e) {
       row[19] = text_(clip_(t.summary || data.summary || '', 1000)); // T 要約
       row[20] = dateText_(t.start);                                 // U 開始日時
       row[21] = 'メール';                                            // V 出どころ
+      // W〜Y: セクションと依存関係。Gemini が選んだ登録先と実際の登録先が同じときだけ使う
+      // （セクションや #番号 はプロジェクトごとのため）。候補どうしの依存（候補:ID）はいつでも残す
+      const same = route.project === String(t.project || '').trim();
+      row[22] = same ? text_(clip_(t.section || '', 200)) : '';     // W セクション
+      row[23] = refs_(t.predecessors, same);                        // X 先行タスク
+      row[24] = refs_(t.successors, same);                          // Y 後続タスク
       rows.push(row);
     });
     if (rows.length) {
@@ -248,6 +254,22 @@ function clip_(s, n) {
 function text_(s) {
   s = String(s || '');
   return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+/**
+ * 依存関係の指定を「#12 名前; 候補:ID」の形にそろえる。それ以外の書き方は捨てる。
+ * allowTaskNo が false なら、プロジェクトごとの番号（#12）は使わない。
+ */
+function refs_(v, allowTaskNo) {
+  const list = Array.isArray(v) ? v : String(v || '').split(/[;；\n]/);
+  return list.map(function (x) {
+    const s = String(x || '').trim();
+    let m = s.match(/候補\s*[:：]\s*([A-Za-z0-9_\-]{1,120})/);
+    if (m) return '候補:' + m[1];
+    m = s.match(/^#\s*(\d{1,9})\s*(.*)$/);
+    if (m && allowTaskNo) return '#' + m[1] + (m[2] ? ' ' + clip_(m[2].replace(/[;；]/g, ' '), 60) : '');
+    return '';
+  }).filter(String).slice(0, 3).map(text_).join('; ');
 }
 
 /** yyyy-MM-dd または yyyy-MM-dd HH:mm だけを通す。 */
