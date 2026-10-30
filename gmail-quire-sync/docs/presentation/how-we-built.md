@@ -31,6 +31,30 @@
 
 ---
 
+## スライド 2-2　別バージョン：Google Workspace だけで動かす（Workspace Studio 版）
+
+**図：`layered-studio.png`**
+
+- 判断する AI を Claude から Gemini（Google Workspace Studio）に置き換えた構成
+- メールの受信、判定、記録、通知、承認まで、すべて Google Workspace の中で完結。外に出るのは登録先の Quire だけ
+- 台帳（スプレッドシート）、確認カード、承認ページ、学習は Claude 版とまったく同じものを使う
+
+| | Claude 版 | Workspace Studio 版 |
+|---|---|---|
+| 判断する AI | Claude（定期実行、毎時） | Gemini（Studio のフロー、メール受信ですぐ） |
+| ルール・過去の判断の参照 | コネクタでスプレッドシートを読む | スキルにスプレッドシートを持たせて読む |
+| 台帳への書き込み | Claude が直接追記 | Webhook → 受付口（GAS の Web アプリ）が合言葉を確認して追記 |
+| 通知・承認・Quire 登録・学習 | Apps Script（共通） | Apps Script（共通） |
+
+**話すこと**
+- 台帳と Apps Script を真ん中に置いたので、判断する AI だけを入れ替えられました。新しく作ったのは、Studio から受け取るための小さな受付口だけです。
+- Studio の Webhook はログインせずに送るため、承認ページとは別に「追記しかできない受付口」を作り、合言葉で守っています。
+- Studio、Gemini、Apps Script、スプレッドシート、Chat は、どれも Google Workspace の契約の中で使えます。追加の Google Cloud の設定も、外部の AI サービスの契約もいりません。
+
+▶ 技術メモ：Studio のフローは「メールの受信時 → Gemini に相談（スキルで判定、JSON を出力）→ Webhook の送信（POST）」の3ステップ。受付口は Gemini の出力をそのまま受け取り、送信元ルールで振り分けを確かめ、メール ID で二重登録を防ぐ。
+
+---
+
 ## スライド 3　作った順番：6つのステップ
 
 **図：`build-steps.png`（アーキテクチャ図に番号を付けたもの）**
@@ -253,6 +277,7 @@ Apps Script 8ファイル・約1,100行、指示文 約80行。私はコード�
 | 図 | 使うスライド |
 |---|---|
 | `layered.png` | 2（仕組みのおさらい） |
+| `layered-studio.png` | 2-2（Workspace Studio 版） |
 | `build-steps.png` | 3（作った順番）。6〜12 の各ステップで、該当する番号を指しながら話すと流れがつながる |
 | `technical.png` | エンジニア向けの補足が必要なとき（8・13 のあと） |
 

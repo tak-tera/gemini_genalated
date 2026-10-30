@@ -11,6 +11,7 @@
 | `google-chat.svg` | npm `@iconify-json/simple-icons`（googlechat） | 公式ロゴの単色版をブランドカラー（#00AC47）で着色 |
 | `claude.svg` | npm `@iconify-json/logos`（claude-icon） | 公式ロゴ |
 | `anthropic.svg` | npm `@iconify-json/logos`（anthropic） | 公式ロゴ |
+| `gemini.svg` | npm `@iconify-json/logos`（google-gemini-icon） | 公式ロゴ |
 | `quire.svg` | GitHub `quire-api/quire-api`（doc_template/quire_logo.svg） | Quire 公式 API ドキュメントのロゴ |
 
 Google スプレッドシートと Google Chat は、作成環境から Google の配布元に接続できなかったため単色版を使っています。

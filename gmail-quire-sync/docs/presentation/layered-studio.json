@@ -1,0 +1,218 @@
+{
+ "logo_dir": "logos",
+ "title": "Gmail → Quire タスク登録（Workspace Studio 版）",
+ "subtitle": "判断を Gemini に置き換え、Google Workspace の中だけで動かす構成",
+ "top": 124,
+ "layers": [
+  {
+   "id": "ai",
+   "color": "violet",
+   "h": 64,
+   "marks": [
+    {
+     "logo": "gemini.svg"
+    }
+   ],
+   "title": "Gemini（Workspace Studio）",
+   "sub": "メール受信で起動するフロー／スキル",
+   "right": [
+    "タスクの判定・抽出",
+    "スキルが振り分けルールと過去の判断を参照"
+   ]
+  },
+  {
+   "id": "hub",
+   "color": "amber",
+   "emphasis": true,
+   "h": 64,
+   "gap_after": 36,
+   "marks": [
+    {
+     "logo": "google-sheets.svg",
+     "w": 36,
+     "h": 40
+    }
+   ],
+   "title": "台帳：登録ログ",
+   "sub": "受付口（GAS の Web アプリ）が合言葉を確認して追記",
+   "right": [
+    "状態管理",
+    "承認待ち → 登録済／却下"
+   ]
+  },
+  {
+   "id": "mid",
+   "type": "row",
+   "h": 128,
+   "items": [
+    {
+     "id": "card",
+     "color": "teal",
+     "title": "確認カード送信",
+     "marks": [
+      {
+       "logo": "google-apps-script.svg"
+      },
+      {
+       "logo": "google-chat.svg"
+      }
+     ],
+     "lines": [
+      "Apps Script（5分ごと）",
+      "Chat Webhook・cardsV2",
+      "1回最大20件"
+     ]
+    },
+    {
+     "id": "rules",
+     "color": "blue",
+     "title": "ルール・設定",
+     "marks": [
+      {
+       "logo": "google-sheets.svg"
+      }
+     ],
+     "lines": [
+      "送信元・関係性・キーワード",
+      "修正・移動から学習（毎朝）",
+      "Gemini のスキルも参照"
+     ]
+    },
+    {
+     "id": "page",
+     "color": "amber",
+     "emphasis": true,
+     "title": "承認ページ（安全制御）",
+     "marks": [
+      {
+       "logo": "google-apps-script.svg"
+      }
+     ],
+     "lines": [
+      "アクセスは本人のみ",
+      "HMAC 署名・入力検証",
+      "二重登録を防止"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "human",
+   "color": "rose",
+   "h": 64,
+   "marks": [
+    {
+     "icon": "users",
+     "color": "rose"
+    }
+   ],
+   "title": "人（承認者）",
+   "sub": "Google Chat のカードから判断",
+   "right": [
+    "登録する｜内容を直して登録｜却下",
+    "最終判断は必ず人が行う"
+   ]
+  }
+ ],
+ "boundary": {
+  "layers": [
+   "ai",
+   "hub",
+   "mid",
+   "human"
+  ],
+  "logo": "google-workspace.svg",
+  "logo_w": 120,
+  "logo_h": 18,
+  "label": "の中で完結"
+ },
+ "links": [
+  {
+   "from": "ai",
+   "to": "hub",
+   "dx": 90,
+   "label": "Webhook（POST）→ 受付口"
+  },
+  {
+   "from": "hub",
+   "to": "ai",
+   "dx": -90,
+   "label": "ルール・過去の判断を参照",
+   "label_side": "left",
+   "strong": true,
+   "color": "violet"
+  },
+  {
+   "from": "hub",
+   "to": "card"
+  },
+  {
+   "from": "hub",
+   "to": "rules",
+   "both": true
+  },
+  {
+   "from": "hub",
+   "to": "page",
+   "both": true
+  },
+  {
+   "from": "card",
+   "to": "human",
+   "label": "カードが届く"
+  },
+  {
+   "from": "human",
+   "to": "page",
+   "label": "ボタンで開く"
+  }
+ ],
+ "inputs": {
+  "to": "ai",
+  "items": [
+   {
+    "y": 176,
+    "mark": {
+     "logo": "gmail.svg",
+     "w": 40,
+     "h": 30
+    },
+    "title": "依頼メール",
+    "sub": "Gmail"
+   }
+  ]
+ },
+ "outputs": {
+  "items": [
+   {
+    "y": 181,
+    "mark": {
+     "logo": "quire.svg",
+     "w": 100,
+     "h": 30
+    },
+    "title": "Quire タスク",
+    "sub": "期間・担当者つき",
+    "from": "page",
+    "label": "Quire API",
+    "label_dy": -56
+   },
+   {
+    "y": 330,
+    "title": "監査ログ",
+    "sub": "判断と結果の記録"
+   },
+   {
+    "y": 450,
+    "title": "育つルール",
+    "sub": "使うほど賢くなる"
+   }
+  ]
+ },
+ "callout": {
+  "text": [
+   "Studio・Gemini・GAS・スプレッドシート・Chat、すべて Google Workspace の中で完結",
+   "外に出るのは登録先の Quire だけ。台帳・承認・学習は Claude 版と同じものを使う"
+  ]
+ }
+}

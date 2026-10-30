@@ -67,6 +67,7 @@ AI は下書きまで。決めるのは人。判断の記録が台帳に残り�
 
 - `layered.png`：アーキテクチャ（レイヤー構成。台帳を中心に、AI・処理・人の層を示す）※メインの図
 - `architecture.png`：処理の流れに沿った全体像（レーン構成）
+- `layered-studio.png`：Workspace Studio 版（判断を Gemini に置き換え、Google Workspace の中で完結）。原稿は `how-we-built.md` のスライド 2-2
 - `build-steps.png`：作った順番（アーキテクチャ図に①〜⑥の番号）。原稿は `how-we-built.md`
 - `technical.png`：技術構成（開発者・パワーユーザー向け。ランタイム・API・セキュリティ）
 - レーン構成の図は `*.json` を `tools/archdiagram_logo.py` で、レイヤー構成の図は `layered.json` を `tools/layered_arch.py` で作り直せる（`python3 tools/layered_arch.py layered.json -o layered.svg --png layered.png`）。同じ生成器は共通スキル terao-layered-arch にも入っている
