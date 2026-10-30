@@ -68,7 +68,8 @@ function handleIntake_(e) {
 
     const sender = clip_(data.sender || data.from || '', 200);
     const subject = clip_(data.subject || '', 300);
-    const receivedAt = receivedText_(data.received_at || data.receivedAt);
+    // 受信日時は、Gmail の変数の行 → Gemini の JSON の順に、読める方を使う
+    const receivedAt = receivedText_(data.received_at, data._json_received_at);
     const baseId = baseId_(data, sender, subject, receivedAt);
     // リンクが「…#all/」で終わっていたら（ID の変数が次の行に分かれた場合など）、メール ID を足す
     let gmailUrl = String(data.gmail_url || data.gmailUrl || '').trim();
@@ -121,7 +122,7 @@ function handleIntake_(e) {
  * （Studio の Gmail の変数をペイロードに並べて送る使い方。Gemini が書き写すより確実なため）。
  */
 function parseBody_(raw) {
-  const text = String(raw || '').trim();
+  const text = cleanLinks_(String(raw || '').trim());
   if (!text) return {};
   try { return unwrap_(JSON.parse(text)); } catch (e) { /* 続けて探す */ }
   let data = {};
@@ -135,11 +136,24 @@ function parseBody_(raw) {
     } catch (e) { /* 読めない */ }
   }
   const keys = ['message_id', 'gmail_url', 'sender', 'subject', 'received_at', 'token'];
+  data._json_received_at = data.received_at || data.receivedAt || '';
   rest.split(/\r?\n/).forEach(function (line) {
     const m = line.match(/^\s*([a-z_]+)\s*[:：]\s*(.+?)\s*$/i);
     if (m && keys.indexOf(m[1].toLowerCase()) >= 0) data[m[1].toLowerCase()] = m[2];
   });
   return data;
+}
+
+/**
+ * Studio は本文中のドメインを「https://www.google.com/url?q=https://tohoku.ac.jp&sa=E&source=workflows」のような
+ * 転送リンクに書き換えることがある（例: grp.tohoku.ac.jp → grp.https://www.google.com/url?q=…）。元の文字に戻す。
+ */
+function cleanLinks_(text) {
+  return text
+    .replace(/https?:\/\/www\.google\.com\/url\?q=https?:\/\/([^&\s"<>]+)&sa=E&source=workflows/g, function (m, host) {
+      try { return decodeURIComponent(host); } catch (e) { return host; }
+    })
+    .replace(/<\s*mailto:[^>]*>/g, '');
 }
 
 /** { "gemini": "…JSON の文字列…" } のように包まれていたら中身を取り出す。 */
@@ -299,13 +313,35 @@ function safeGmailUrl_(url) {
   return s.indexOf('https://mail.google.com/') === 0 ? clip_(s, 500) : '';
 }
 
-/** 受信日時を「yyyy-MM-dd HH:mm」（日本時間）にそろえる。読めなければ今の時刻。 */
-function receivedText_(v) {
-  const s = String(v || '').trim();
-  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(s)) return s;
-  const d = s ? new Date(s) : null;
-  if (d && !isNaN(d)) return Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm');
+/**
+ * 受信日時を「yyyy-MM-dd HH:mm」（日本時間）にそろえる。候補を順に試し、どれも読めなければ今の時刻。
+ * 読める形: 2026-10-30 08:59 / ISO 形式 / Studio の「10月 30, 2026 at 8:59 午前 JST」
+ */
+function receivedText_() {
+  for (let i = 0; i < arguments.length; i++) {
+    const t = parseReceived_(arguments[i]);
+    if (t) return t;
+  }
   return now_();
+}
+
+function parseReceived_(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const p = function (x) { return ('0' + x).slice(-2); };
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})$/);
+  if (m) return m[1] + '-' + p(m[2]) + '-' + p(m[3]) + ' ' + p(m[4]) + ':' + m[5];
+  m = s.match(/(\d{1,2})月\s*(\d{1,2}),?\s*(\d{4})\D+?(\d{1,2}):(\d{2})\s*(午前|午後|AM|PM)?/i);
+  if (m) {
+    let h = Number(m[4]);
+    const ampm = String(m[6] || '').toUpperCase();
+    if ((ampm === '午後' || ampm === 'PM') && h < 12) h += 12;
+    if ((ampm === '午前' || ampm === 'AM') && h === 12) h = 0;
+    return m[3] + '-' + p(m[1]) + '-' + p(m[2]) + ' ' + p(h) + ':' + m[5];
+  }
+  const d = new Date(s);
+  if (!isNaN(d)) return Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm');
+  return '';
 }
 
 function now_() {
