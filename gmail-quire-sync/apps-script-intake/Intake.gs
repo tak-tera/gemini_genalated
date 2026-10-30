@@ -106,17 +106,31 @@ function handleIntake_(e) {
 
 // ---------- 入力の読み取り ----------
 
-/** 本文を読む。JSON でなければ、文章の中の最初の { … } を JSON として読む。 */
+/**
+ * 本文を読む。JSON でなければ、文章の中の最初の { … } を JSON として読む。
+ * JSON の外に「message_id: …」「gmail_url: …」のような行があれば、その値で上書きする
+ * （Studio の Gmail の変数をペイロードに並べて送る使い方。Gemini が書き写すより確実なため）。
+ */
 function parseBody_(raw) {
   const text = String(raw || '').trim();
   if (!text) return {};
   try { return unwrap_(JSON.parse(text)); } catch (e) { /* 続けて探す */ }
+  let data = {};
+  let rest = text;
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start >= 0 && end > start) {
-    try { return unwrap_(JSON.parse(text.slice(start, end + 1))); } catch (e) { /* 読めない */ }
+    try {
+      data = unwrap_(JSON.parse(text.slice(start, end + 1)));
+      rest = text.slice(0, start) + '\n' + text.slice(end + 1);
+    } catch (e) { /* 読めない */ }
   }
-  return {};
+  const keys = ['message_id', 'gmail_url', 'sender', 'subject', 'received_at', 'token'];
+  rest.split(/\r?\n/).forEach(function (line) {
+    const m = line.match(/^\s*([a-z_]+)\s*[:：]\s*(.+?)\s*$/i);
+    if (m && keys.indexOf(m[1].toLowerCase()) >= 0) data[m[1].toLowerCase()] = m[2];
+  });
+  return data;
 }
 
 /** { "gemini": "…JSON の文字列…" } のように包まれていたら中身を取り出す。 */

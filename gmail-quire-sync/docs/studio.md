@@ -103,6 +103,29 @@ Gemini の出力に "is_task": true が含まれるときだけ、次のステ�
 - Content-Type: application/json
 ```
 
+## Webhook ステップの設定（Studio の画面）
+
+| 欄 | 入れるもの |
+|---|---|
+| Webhook または API URL | `受付口の URL?key=合言葉` |
+| メソッド | POST |
+| ペイロード | 下のとおり。`@` で変数を入れる |
+
+ペイロード（1行目は Gemini ステップの出力の変数。2行目以降は Gmail のきっかけの変数があれば）:
+
+```
+@（Gemini ステップの出力）
+message_id: @（メールの ID）
+gmail_url: @（メールのリンク）
+sender: @（送信者）
+subject: @（件名）
+```
+
+- Content-Type の設定欄はありませんが、受付口は本文をそのまま読むので問題ありません
+- 2行目以降は、Gmail のきっかけにその変数があるものだけで構いません。無い行は消してください
+- `message_id` に Gmail のメッセージ ID が入ると、Claude 版と同じ ID になり、両方を動かしても二重登録になりません
+- Gemini の出力を `"…"` で囲んだり、JSON の中に入れたりしないでください（引用符が崩れて読めなくなります）
+
 ## 試すときの注意
 
 - **Studio の画面で決まること**：Webhook の本文や Content-Type を設定できるか、メールの ID やリンクを変数として渡せるか、
