@@ -49,6 +49,7 @@ Google Cloud の設定は不要です。チャットへの送信は Google Chat 
 - `docs/claude-routine.md` … Claude の定期実行タスクに渡す指示文
 - `docs/studio.md` … Google Workspace Studio（Gemini）から使う場合の受付口と初期プロンプト
 - `docs/studio-skill.md` … Studio のスキル（スプレッドシート参照版の判定）
+- `docs/chat-bot-design.md` … Google Chat のメッセージから Todo を作る設計案（Studio 版と Google Cloud 版）
 - `apps-script-intake/` … Studio の Webhook を受ける受付口（別の Apps Script プロジェクト）
 
 ## メール以外からの候補（共通スキル）
