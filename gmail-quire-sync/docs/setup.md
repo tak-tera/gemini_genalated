@@ -7,7 +7,7 @@
 
 - Google Workspace アカウント（t-consulting.biz）
 - Quire アカウント
-- スプレッドシート「Gmail→Quire 振り分けルール」の ID
+- スプレッドシート「QT-台帳」（旧名: Gmail→Quire 振り分けルール）の ID
   （URL の `https://docs.google.com/spreadsheets/d/【ここ】/edit` の部分）
 
 ---
@@ -19,10 +19,10 @@
 
 ## 2. 通知用のスペースを作り、Webhook を発行する
 
-1. Google Chat で「＋ 新しいチャット」→「スペースを作成」。名前の例: `Quire登録確認`。
+1. Google Chat で「＋ 新しいチャット」→「スペースを作成」。名前: `QT-確認`。
    メンバーは自分だけにします。
 2. スペース名の横の「▼」→「アプリと統合」（Apps & integrations）→「Webhook を追加」（Add webhooks）。
-   - 名前: `Quire登録確認`
+   - 名前: `QT-確認カード`
    - アバターの URL: 空欄でかまいません
 3. 「保存」すると表示される URL（`https://chat.googleapis.com/v1/spaces/…` で始まる長い URL）をコピーします。
 
@@ -31,7 +31,7 @@
 
 ## 3. Apps Script プロジェクトを作る
 
-1. https://script.google.com/ →「新しいプロジェクト」。名前の例: `Gmail→Quire 登録確認`
+1. https://script.google.com/ →「新しいプロジェクト」。名前: `QT-本体`
 2. 左の歯車「プロジェクトの設定」で「`appsscript.json` マニフェスト ファイルをエディタで表示する」に **チェック**。
 3. 同じ画面で **スクリプト ID** を控えます（手順 6 で使います）。
 4. エディタに戻り、`apps-script/` フォルダのファイルをすべて作成して中身を貼り付けます。

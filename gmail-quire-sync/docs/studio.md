@@ -23,7 +23,7 @@ Studio の Webhook は Google のログイン情報を付けずに送るため�
 
 ## 設定手順
 
-1. https://script.google.com/ で新しいプロジェクトを作る（名前の例: `Quire 受付口（Studio）`）
+1. https://script.google.com/ で新しいプロジェクトを作る（名前: `QT-受付口`）
 2. `apps-script-intake/Intake.gs` と `appsscript.json` を貼り付ける（マニフェストの表示は「プロジェクトの設定」でオン）
 3. スクリプト プロパティに `SPREADSHEET_ID`（今と同じスプレッドシート）を入れる
 4. 関数 `setupIntakeToken` を実行し、ログに出た合言葉を控える（チャットやドキュメントには貼らない）

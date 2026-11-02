@@ -35,16 +35,21 @@ Google Cloud の設定は不要です。チャットへの送信は Google Chat 
 
 ## スプレッドシート
 
-「Gmail→Quire 振り分けルール」というスプレッドシートを使います。タブは3つです。
+スプレッドシート「QT-台帳」（旧名: Gmail→Quire 振り分けルール）を使います。タブは3つです。
 
 - **振り分けルール**: プロジェクトごとの送信元・関係性メモ・キーワード
 - **設定**: General の入れ先、確信度の下限、処理済みラベル、Chat で確認するかどうか など
 - **登録ログ**: 判定結果と承認状況（1タスク1行）。W〜Z 列はセクション・先行タスク・後続タスク・依存メモ
 - **Quireスナップショット**: Apps Script が毎時 Quire から写す、プロジェクトごとのセクションと未完了タスク（Claude の提案と編集ページの選択肢に使う）
 
+## 名前の付け方
+
+このプロジェクトの GAS・スプレッドシート・Studio のフローとスキル・Chat のスペースは、すべて `QT-` で始まる名前にそろえています。
+対応表は `docs/names.md` を参照してください。
+
 ## フォルダ構成
 
-- `apps-script/` … Apps Script のコード（Webhook 送信、Web ページ、Quire API、トリガー処理）
+- `apps-script/` … QT-本体 のコード（確認カード、承認ページ、Quire API、トリガー処理）
 - `docs/setup.md` … 設定手順（Webhook・Web アプリ・Quire API）
 - `docs/claude-routine.md` … Claude の定期実行タスクに渡す指示文
 - `docs/studio.md` … Google Workspace Studio（Gemini）から使う場合の受付口と初期プロンプト
@@ -52,7 +57,7 @@ Google Cloud の設定は不要です。チャットへの送信は Google Chat 
 - `docs/chat-setup.md` … Chat 版（トラック1）のセットアップ手順
 - `docs/studio-chat-skill.md` … Studio のスキル（Chat の投稿の判定）
 - `docs/chat-bot-design.md` … Google Chat のメッセージから Todo を作る設計案（Studio 版と Google Cloud 版）
-- `apps-script-intake/` … Studio の Webhook を受ける受付口（別の Apps Script プロジェクト）
+- `apps-script-intake/` … QT-受付口 のコード（Studio の Webhook を受けて台帳に追記。QT-本体 とは別のプロジェクト）
 
 ## メール以外からの候補（共通スキル）
 
