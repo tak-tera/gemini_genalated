@@ -109,7 +109,7 @@ function handleIntake_(e) {
       if (isChat) {
         row[26] = assignee_(t.assignee);                            // AA 担当者案
         row[27] = text_(clip_(data.space || '', 100));              // AB スペース
-        row[28] = threadName_(data.thread);                         // AC スレッド
+        row[28] = threadName_(data.thread) || threadFromMessage_(data); // AC スレッド
       }
       rows.push(row);
     });
@@ -144,7 +144,7 @@ function parseBody_(raw) {
     } catch (e) { /* 読めない */ }
   }
   const keys = ['message_id', 'gmail_url', 'sender', 'subject', 'received_at', 'token',
-    'source', 'chat_url', 'thread', 'space', 'text', 'force'];
+    'source', 'chat_url', 'thread', 'space', 'space_id', 'text', 'force'];
   data._json_received_at = data.received_at || data.receivedAt || '';
   rest.split(/\r?\n/).forEach(function (line) {
     const m = line.match(/^\s*([a-z_]+)\s*[:：]\s*(.+?)\s*$/i);
@@ -329,6 +329,20 @@ function assignee_(v) {
 function threadName_(v) {
   const s = String(v || '').trim();
   return /^spaces\/[A-Za-z0-9_\-]+\/threads\/[A-Za-z0-9_.\-]+$/.test(s) ? s : '';
+}
+
+/**
+ * スレッドが渡されないとき（Studio では指定できない）、メッセージ ID とスペース ID から組み立てる。
+ * Chat のメッセージ ID は「スレッドの ID.メッセージの ID」の形なので、前半がスレッドの ID になる。
+ */
+function threadFromMessage_(data) {
+  const mid = String(data.message_id || '').trim();
+  const m = mid.match(/^spaces\/([A-Za-z0-9_\-]+)\/messages\/([A-Za-z0-9_\-]+)\.[A-Za-z0-9_\-]+$/);
+  if (m) return threadName_('spaces/' + m[1] + '/threads/' + m[2]);
+  const sid = String(data.space_id || '').trim().replace(/^spaces\//, '');
+  const k = mid.match(/^([A-Za-z0-9_\-]+)\.[A-Za-z0-9_\-]+$/);
+  if (k && /^[A-Za-z0-9_\-]+$/.test(sid)) return threadName_('spaces/' + sid + '/threads/' + k[1]);
+  return '';
 }
 
 function safeChatUrl_(url) {
