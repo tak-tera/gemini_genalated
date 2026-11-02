@@ -2,7 +2,8 @@
  * カードのボタンから開く Web ページ。
  *
  * セキュリティ:
- *  - Web アプリは「自分のみ」アクセスできる設定で公開する（他人が開いても Google が拒否する）
+ *  - Web アプリは「組織内の全員」で公開し、開いた人のアドレスで操作できる人を確かめる（canOperate_）
+ *    メール由来の候補は持ち主だけ、チャット由来の候補は持ち主・投稿者・担当者案の人だけが操作できる
  *  - リンクには署名（sig）が付いており、署名が合わなければ何もしない
  *    （本人がだまされて偽のリンクを開いても、勝手に登録・却下されない）
  *  - 登録先は振り分けルールにある有効なプロジェクトだけを受け付ける
@@ -33,6 +34,10 @@ function doGet(e) {
 
   const entry = findLogEntry_(p.id);
   if (!entry) return page_('見つかりません', '<p>登録ログに該当する行がありません。</p>');
+  if (!canOperate_(entry)) {
+    return page_('操作できません', '<p>このタスク候補を操作できるのは、登録の担当者（寺尾さん）、投稿者、担当者案の人だけです。'
+      + '組織のアカウントでログインしているか確認してください。</p>');
+  }
 
   if (p.action === 'edit' || p.action === 'choose') return editPage_(entry, p.action, p.sig);
   if (p.action === 'approve') return resultPage_(decide_(p.id, true));
@@ -44,6 +49,8 @@ function submitEdit(messageId, action, sig, form) {
   if ((action !== 'edit' && action !== 'choose') || !verifyAction_(action, messageId, sig)) {
     throw new Error('リンクが無効です。');
   }
+  const target = findLogEntry_(messageId);
+  if (!target || !canOperate_(target)) throw new Error('このタスク候補を操作する権限がありません。');
   const clean = validateEditForm_(form, getProjects_(true), messageId, getSnapshot_(), getLogEntries_());
 
   const lock = LockService.getScriptLock();
@@ -277,7 +284,7 @@ function editPage_(entry, action, sig) {
     snap: snapshotForPage_(projects, snapshot),
     cands: relatedCandidates_(entry, entries),
     priorities: PRIORITIES,
-    assignees: settings.assignees.join('; '),
+    assignees: assigneesFor_(entry, settings).join('; '),
     max: MAX_TASKS_PER_EDIT,
     maxDeps: MAX_DEPS,
     task: (function () {
@@ -302,7 +309,7 @@ function editPage_(entry, action, sig) {
     '<p class="note">出どころ: ' + escapeHtml_(clip_(sourceOf_(entry), 20)) + '</p>' +
     (sourceUrl ? '<p><a href="' + escapeHtml_(sourceUrl) + '" target="_blank">' + escapeHtml_(sourceLinkLabel_(entry)) + '</a></p>' : '') +
     '</div>' +
-    '<label>担当者（me は自分。複数は ; 区切り）<input id="assignees"></label>' +
+    '<label>担当者（メールアドレス。me は Quire 連携のアカウント。複数は ; 区切り。空欄なら担当者なし）<input id="assignees"></label>' +
     '<div id="tasks"></div>' +
     '<p><button class="btn sub-btn" id="add" type="button">＋ タスクを追加</button></p>' +
     '<p><button class="btn" id="go" type="button">登録する</button></p>' +
@@ -359,6 +366,8 @@ function loadProjectStructure(messageId, action, sig, projectName) {
   if ((action !== 'edit' && action !== 'choose') || !verifyAction_(action, messageId, sig)) {
     throw new Error('リンクが無効です。');
   }
+  const target = findLogEntry_(messageId);
+  if (!target || !canOperate_(target)) throw new Error('このタスク候補を操作する権限がありません。');
   const project = findProjectByName_(projectName, getProjects_(true));
   if (!project) throw new Error('登録先が振り分けルールにありません。');
   const s = refreshProjectSnapshot_(project);

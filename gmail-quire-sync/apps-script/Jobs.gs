@@ -34,10 +34,13 @@ function processPending() {
       const project = findProjectByName_(entry.judgedProject, projects);
       const selected = project ? String(entry.judgedProject) : settings.generalProject;
       try {
+        // チャット由来の候補は、元のスペースのスレッドに返す（そのスペースの Webhook があれば）
+        const isChat = sourceOf_(entry) === SOURCE.CHAT;
+        const spaceUrl = isChat ? spaceWebhookUrl_(entry.space) : '';
         const message = sendToChat_({
-          text: 'Quire 登録の確認: ' + clip_(entry.subject, 100),
+          text: 'Quire 登録の確認: ' + clip_(entry.subject || entry.taskName, 100),
           cardsV2: [approvalCard_(entry, selected, entries, project, snapshot)],
-        });
+        }, { url: spaceUrl, thread: spaceUrl ? String(entry.thread || '') : '' });
         updateLog_(entry.row, { notifiedAt: now_(), chatMessage: message.name || '' });
       } catch (e) {
         Logger.log('チャット送信に失敗: ' + entry.messageId + ' ' + e.message);

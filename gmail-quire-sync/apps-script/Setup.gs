@@ -50,6 +50,19 @@ function checkSetup() {
     results.push('NG   セクション・依存関係: ' + e.message);
   }
 
+  // チャットのスペースに返すための Webhook（SPACE_WEBHOOK_スペース名）
+  const spaceKeys = Object.keys(PropertiesService.getScriptProperties().getProperties())
+    .filter(function (k) { return k.indexOf('SPACE_WEBHOOK_') === 0; });
+  results.push((spaceKeys.length ? 'OK  ' : 'なし') + ' チャットのスペースの Webhook: '
+    + (spaceKeys.length ? spaceKeys.map(function (k) { return k.slice(14); }).join(', ') : '未設定（チャット由来のカードは確認用スペースに届く）'));
+  try {
+    const head = sheet_(SHEET.LOG).getRange(1, 1, 1, COL.thread).getValues()[0];
+    results.push((String(head[COL.thread - 1] || '') ? 'OK  ' : 'NG  ') + ' 登録ログの列: AA〜AC（担当者／スペース／スレッド）の見出し');
+  } catch (e) {
+    results.push('NG   登録ログの列 AA〜AC: ' + e.message);
+  }
+  results.push('情報 Web アプリの持ち主: ' + ownerEmail_());
+
   try {
     testQuire();
     results.push('OK   Quire API');

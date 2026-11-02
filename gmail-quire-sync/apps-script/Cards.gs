@@ -12,6 +12,9 @@ function approvalCard_(entry, selectedName, entries, project, snapshot) {
     textWidget_('タスク名', clip_(entry.taskName, 200)),
     textWidget_('登録先', where),
   ];
+  if (sourceOf_(entry) === SOURCE.CHAT) {
+    widgets.push(textWidget_('担当者案', clip_(String(entry.assignee || '').trim() || '（なし）', 200)));
+  }
   // 依存関係は判定どおりのプロジェクトに入れるときだけ使う
   if (selectedName === String(entry.judgedProject)) {
     const before = refsLabel_(entry.predecessors, entries);

@@ -21,7 +21,7 @@ const INTAKE = {
   LOG: '登録ログ',
   RULES: '振り分けルール',
   SETTINGS: '設定',
-  COLS: 26,               // 登録ログ A〜Z
+  COLS: 29,               // 登録ログ A〜AC
   MAX_TASKS: 3,           // 1通あたりの最大件数（Claude の判定と同じ）
   MAX_PER_HOUR: 60,       // 想定外の大量送信への歯止め
 };
@@ -49,7 +49,8 @@ function handleIntake_(e) {
   const token = String(data.token || params.key || '');
   if (!checkToken_(token)) return { ok: false, error: 'unauthorized' };
   // タスクが無いメールは何もしない（Studio 側で条件分岐をせず、毎回送ってよい）
-  if (data.is_task === false || String(data.is_task).toLowerCase() === 'false') {
+  const force = String(data.force || '').toLowerCase() === 'true';
+  if (!force && (data.is_task === false || String(data.is_task).toLowerCase() === 'false')) {
     return { ok: true, added: 0, note: 'not a task' };
   }
   let tasks = Array.isArray(data.tasks) ? data.tasks : (data.task_name || data.name ? [data] : []);
@@ -67,10 +68,12 @@ function handleIntake_(e) {
     const projects = readProjects_(ss);
 
     const sender = clip_(data.sender || data.from || '', 200);
-    const subject = clip_(data.subject || '', 300);
+    // チャットには件名が無いので、スペース名と本文の冒頭で代わりにする
+    const subject = clip_(data.subject || (data.space ? '［' + data.space + '］' : '') + String(data.text || ''), 300);
     // 受信日時は、Gmail の変数の行 → Gemini の JSON の順に、読める方を使う
     const receivedAt = receivedText_(data.received_at, data._json_received_at);
-    const baseId = baseId_(data, sender, subject, receivedAt);
+    const isChat = /チャット|chat/i.test(String(data.source || ''));
+    const baseId = isChat ? chatId_(data, sender, receivedAt) : baseId_(data, sender, subject, receivedAt);
     // リンクが「…#all/」で終わっていたら（ID の変数が次の行に分かれた場合など）、メール ID を足す
     let gmailUrl = String(data.gmail_url || data.gmailUrl || '').trim();
     if (/\/$/.test(gmailUrl) && /^[A-Za-z0-9]{6,40}$/.test(String(data.message_id || ''))) gmailUrl += data.message_id;
@@ -92,17 +95,22 @@ function handleIntake_(e) {
       row[8] = route.confidence;                                    // I 確信度
       row[9] = text_(clip_(route.reason, 300));                     // J 判定理由
       row[10] = '承認待ち';                                          // K ステータス
-      row[14] = safeGmailUrl_(gmailUrl);                            // O Gmail URL
+      row[14] = isChat ? safeChatUrl_(data.chat_url) : safeGmailUrl_(gmailUrl); // O 元リンク
       row[15] = route.newProject;                                   // P 新規PJ候補
       row[19] = text_(clip_(t.summary || data.summary || '', 1000)); // T 要約
       row[20] = dateText_(t.start);                                 // U 開始日時
-      row[21] = 'メール';                                            // V 出どころ
+      row[21] = isChat ? 'チャット' : 'メール';                       // V 出どころ
       // W〜Y: セクションと依存関係。Gemini が選んだ登録先と実際の登録先が同じときだけ使う
       // （セクションや #番号 はプロジェクトごとのため）。候補どうしの依存（候補:ID）はいつでも残す
       const same = route.project === String(t.project || '').trim();
       row[22] = same ? text_(clip_(t.section || '', 200)) : '';     // W セクション
       row[23] = refs_(t.predecessors, same);                        // X 先行タスク
       row[24] = refs_(t.successors, same);                          // Y 後続タスク
+      if (isChat) {
+        row[26] = assignee_(t.assignee);                            // AA 担当者案
+        row[27] = text_(clip_(data.space || '', 100));              // AB スペース
+        row[28] = threadName_(data.thread);                         // AC スレッド
+      }
       rows.push(row);
     });
     if (rows.length) {
@@ -135,7 +143,8 @@ function parseBody_(raw) {
       rest = text.slice(0, start) + '\n' + text.slice(end + 1);
     } catch (e) { /* 読めない */ }
   }
-  const keys = ['message_id', 'gmail_url', 'sender', 'subject', 'received_at', 'token'];
+  const keys = ['message_id', 'gmail_url', 'sender', 'subject', 'received_at', 'token',
+    'source', 'chat_url', 'thread', 'space', 'text', 'force'];
   data._json_received_at = data.received_at || data.receivedAt || '';
   rest.split(/\r?\n/).forEach(function (line) {
     const m = line.match(/^\s*([a-z_]+)\s*[:：]\s*(.+?)\s*$/i);
@@ -298,6 +307,34 @@ function refs_(v, allowTaskNo) {
     if (m && allowTaskNo) return '#' + m[1] + (m[2] ? ' ' + clip_(m[2].replace(/[;；]/g, ' '), 60) : '');
     return '';
   }).filter(String).slice(0, 3).map(text_).join('; ');
+}
+
+/** チャットの候補 ID。メッセージ ID（spaces/…/messages/… の形でも可）から作る。 */
+function chatId_(data, sender, receivedAt) {
+  const raw = String(data.message_id || data.messageId || '').trim();
+  const last = raw.split('/').pop().replace(/[^A-Za-z0-9_\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (last.length >= 4) return 'chat-' + clip_(last, 80);
+  return 'chat-' + baseId_(data, sender, String(data.text || ''), receivedAt).replace(/^studio-/, '');
+}
+
+/** 担当者案。メールアドレスだけを通す（; 区切りで複数可）。 */
+function assignee_(v) {
+  const list = Array.isArray(v) ? v : String(v || '').split(/[;；,、\s]+/);
+  return list.map(function (x) { return String(x || '').trim().toLowerCase(); })
+    .filter(function (x) { return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x); })
+    .slice(0, 5).join('; ');
+}
+
+/** スレッド名（spaces/…/threads/…）。それ以外は空文字。 */
+function threadName_(v) {
+  const s = String(v || '').trim();
+  return /^spaces\/[A-Za-z0-9_\-]+\/threads\/[A-Za-z0-9_.\-]+$/.test(s) ? s : '';
+}
+
+function safeChatUrl_(url) {
+  const s = String(url || '').trim();
+  return (s.indexOf('https://chat.google.com/') === 0 || s.indexOf('https://mail.google.com/chat/') === 0)
+    && !/[\s"'<>]/.test(s) ? clip_(s, 500) : '';
 }
 
 /** yyyy-MM-dd または yyyy-MM-dd HH:mm だけを通す。 */

@@ -10,11 +10,22 @@
 const WEBHOOK_PREFIX = 'https://chat.googleapis.com/v1/spaces/';
 const WEBAPP_PREFIX = 'https://script.google.com/';
 
-/** Webhook にメッセージを送る。戻り値は作成されたメッセージ。 */
-function sendToChat_(message) {
-  const url = String(prop_('CHAT_WEBHOOK_URL'));
+/**
+ * Webhook にメッセージを送る。戻り値は作成されたメッセージ。
+ * opts.url を渡すとそのスペースの Webhook に送る（無ければ確認用スペース）。
+ * opts.thread（spaces/…/threads/…）を渡すと、そのスレッドへの返信にする（無理なら新しいスレッド）。
+ */
+function sendToChat_(message, opts) {
+  opts = opts || {};
+  let url = String(opts.url || prop_('CHAT_WEBHOOK_URL'));
   if (url.indexOf(WEBHOOK_PREFIX) !== 0) {
-    throw new Error('CHAT_WEBHOOK_URL が Google Chat の Webhook URL ではありません。');
+    throw new Error('Webhook の URL が Google Chat の Webhook URL ではありません。');
+  }
+  const thread = String(opts.thread || '');
+  if (/^spaces\/[A-Za-z0-9_\-]+\/threads\/[A-Za-z0-9_.\-]+$/.test(thread) && url.indexOf(thread.split('/threads/')[0] + '/') >= 0) {
+    message = JSON.parse(JSON.stringify(message));
+    message.thread = { name: thread };
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD';
   }
   const res = UrlFetchApp.fetch(url, {
     method: 'post',
@@ -27,6 +38,55 @@ function sendToChat_(message) {
     throw new Error('Chat Webhook エラー ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
   }
   return JSON.parse(res.getContentText());
+}
+
+/**
+ * チャットのスペースに返すための Webhook の URL。
+ * スクリプト プロパティ「SPACE_WEBHOOK_（スペース名）」に入れておく（例: SPACE_WEBHOOK_TC）。
+ * スペースが「spaces/AAAA…」の形で届く場合は「SPACE_WEBHOOK_AAAA…」でもよい。無ければ空文字。
+ */
+function spaceWebhookUrl_(space) {
+  const name = String(space || '').trim();
+  if (!name) return '';
+  const keys = ['SPACE_WEBHOOK_' + name, 'SPACE_WEBHOOK_' + name.replace(/\s+/g, '_')];
+  const m = name.match(/^spaces\/([A-Za-z0-9_\-]+)/);
+  if (m) keys.push('SPACE_WEBHOOK_' + m[1]);
+  const props = PropertiesService.getScriptProperties();
+  for (let i = 0; i < keys.length; i++) {
+    const v = String(props.getProperty(keys[i]) || '');
+    if (v.indexOf(WEBHOOK_PREFIX) === 0) return v;
+  }
+  return '';
+}
+
+// ---------- 操作できる人 ----------
+
+/** ページを開いている人のアドレス（同じ組織の人だけ分かる）。 */
+function viewerEmail_() {
+  return String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+}
+
+/** Web アプリの持ち主（実行するユーザー）のアドレス。 */
+function ownerEmail_() {
+  return String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
+}
+
+/**
+ * この候補を操作してよいか。
+ *  - 持ち主（寺尾さん）はすべて
+ *  - チャット由来の候補は、投稿者と担当者案の人も（持ち主と同じ組織の人に限る）
+ *  - メール由来・その他の候補は持ち主だけ
+ */
+function canOperate_(entry) {
+  const viewer = viewerEmail_();
+  const owner = ownerEmail_();
+  if (!viewer) return false;
+  if (viewer === owner) return true;
+  // 持ち主と同じ組織（ドメイン）の人だけ。組織外の投稿者・担当者案の人は操作できない
+  if (viewer.split('@')[1] !== owner.split('@')[1]) return false;
+  if (sourceOf_(entry) !== SOURCE.CHAT) return false;
+  const allowed = [emailAddress_(entry.sender)].concat(splitList_(entry.assignee));
+  return allowed.indexOf(viewer) >= 0;
 }
 
 /** ボタンのリンク先になる Web アプリの URL。 */
@@ -125,7 +185,8 @@ function isMail_(entry) {
 
 /** 出どころに合わせた「元資料を開く」ボタンの文言。 */
 function sourceLinkLabel_(entry) {
-  return isMail_(entry) ? 'メールを開く' : '元資料を開く';
+  if (isMail_(entry)) return 'メールを開く';
+  return sourceOf_(entry) === SOURCE.CHAT ? 'チャットを開く' : '元資料を開く';
 }
 
 function safeQuireUrl_(value) {

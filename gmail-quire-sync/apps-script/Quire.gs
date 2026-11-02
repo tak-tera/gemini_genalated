@@ -128,9 +128,10 @@ function registerEntry_(entry, projectName) {
     name: entry.taskName || entry.subject,
     start: toQuireDateTime_(schedule.start.date, schedule.start.time),
     due: toQuireDateTime_(schedule.end.date, schedule.end.time),
-    assignees: settings.assignees,
+    assignees: assigneesFor_(entry, settings),
   }), settings, notes);
   const task = created.task;
+  if (task._assigneeDropped) notes.push('担当者を指定できなかったため、担当者なしで登録');
 
   const updates = {
     start: partsText_(schedule.start),
@@ -187,6 +188,7 @@ function registerEditedEntry_(entry, form) {
       const c = createTaskInSection_(project, section, buildTaskBody_(entry, settings, {
         name: t.name, start: t.quireStart, due: t.quireDue, priority: t.priority, note: t.note, assignees: form.assignees,
       }), settings, notes);
+      if (c.task._assigneeDropped) notes.push('担当者を指定できなかったため、担当者なしで登録');
       created.push({ task: c.task, project: project, form: t, section: c.section, notes: notes });
     } catch (e) {
       error = (i + 1) + '件目の登録に失敗しました: ' + e.message;
@@ -270,6 +272,21 @@ function shouldLearn_(entry, projects, settings) {
   return names.length === 1 && names[0] !== String(entry.judgedProject) && names[0] !== settings.generalProject;
 }
 
+/**
+ * 登録する担当者。
+ *  - チャット由来：担当者案（AA 列）。持ち主（Quire 連携のアカウント）のアドレスは me にする。空欄なら担当者なし
+ *  - それ以外：設定タブの「Quire の担当者」（既定は me）
+ */
+function assigneesFor_(entry, settings) {
+  if (sourceOf_(entry) !== SOURCE.CHAT) return settings.assignees;
+  const owner = ownerEmail_();
+  return splitList_(entry.assignee)
+    .filter(function (a) { return a === 'me' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a); })
+    .map(function (a) { return a === owner ? 'me' : a; })
+    .filter(function (a, i, arr) { return arr.indexOf(a) === i; })
+    .slice(0, 5);
+}
+
 /** Quire に送るタスクの中身。opts: { name, start, due, priority, note, assignees }（start / due は Quire 形式） */
 function buildTaskBody_(entry, settings, opts) {
   const body = {
@@ -286,6 +303,22 @@ function buildTaskBody_(entry, settings, opts) {
 
 /** タスクを作る。タグが無いなどで失敗したときは、タグを外してタイトルに印を付けて作り直す。 */
 function createTaskWithFallback_(project, body, settings, parentOid) {
+  try {
+    return createTaskWithTagFallback_(project, body, settings, parentOid);
+  } catch (e) {
+    // 担当者（プロジェクトにいない人など）で断られたら、担当者なしで作り直す
+    const others = (body.assignees || []).filter(function (a) { return a !== 'me'; });
+    if (!others.length) throw e;
+    const retry = JSON.parse(JSON.stringify(body));
+    delete retry.assignees;
+    const task = createTaskWithTagFallback_(project, retry, settings, parentOid);
+    task._assigneeDropped = true;
+    return task;
+  }
+}
+
+/** タスクを作る。タグが無いなどで失敗したときは、タグを外してタイトルに印を付けて作り直す。 */
+function createTaskWithTagFallback_(project, body, settings, parentOid) {
   try {
     return quireCreateTask_(project.id, body, parentOid);
   } catch (e) {
