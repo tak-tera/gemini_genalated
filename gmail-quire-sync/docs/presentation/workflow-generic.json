@@ -1,0 +1,240 @@
+{
+ "logo_dir": "logos",
+ "title": "メール・チャットから「タスクかもしれないもの」を拾って登録する",
+ "subtitle": "AI が拾い、人が確認してから、使っているサービスへ。仕組みは Google Workspace の中で完結",
+ "top": 124,
+ "layers": [
+  {
+   "id": "ai",
+   "color": "violet",
+   "h": 64,
+   "marks": [
+    {
+     "logo": "gemini.svg"
+    }
+   ],
+   "title": "Workspace Studio ＋ Gemini",
+   "sub": "メール受信・チャット投稿で自動で動くフロー",
+   "right": [
+    "タスクかもしれないものを拾う",
+    "スキルが判定基準と台帳を参照"
+   ]
+  },
+  {
+   "id": "hub",
+   "color": "amber",
+   "emphasis": true,
+   "h": 64,
+   "gap_after": 36,
+   "marks": [
+    {
+     "logo": "google-drive.svg",
+     "w": 40,
+     "h": 36
+    },
+    {
+     "logo": "google-sheets.svg",
+     "w": 30,
+     "h": 36
+    }
+   ],
+   "title": "台帳（ドライブのスプレッドシート）",
+   "sub": "Apps Script の受付口が、候補を「承認待ち」で1行ずつ追記",
+   "right": [
+    "候補・判定・承認をすべて記録",
+    "振り分けルールも同じ場所に"
+   ]
+  },
+  {
+   "id": "mid",
+   "type": "row",
+   "h": 128,
+   "items": [
+    {
+     "id": "card",
+     "color": "teal",
+     "title": "確認カード",
+     "marks": [
+      {
+       "logo": "google-chat.svg"
+      }
+     ],
+     "lines": [
+      "期日・登録先・担当者を一目で",
+      "メールは自分用スペースへ",
+      "チャットは元のスレッドへ"
+     ]
+    },
+    {
+     "id": "rules",
+     "color": "blue",
+     "title": "ルールと学習",
+     "marks": [
+      {
+       "logo": "google-apps-script.svg"
+      }
+     ],
+     "lines": [
+      "送信元・キーワードで振り分け",
+      "直した結果から学習",
+      "Quire の状態を毎時写す"
+     ]
+    },
+    {
+     "id": "page",
+     "color": "amber",
+     "emphasis": true,
+     "title": "承認と登録",
+     "marks": [
+      {
+       "logo": "google-apps-script.svg"
+      }
+     ],
+     "lines": [
+      "組織内の本人だけが操作",
+      "登録先の API に送る",
+      "二重登録を防ぐ"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "human",
+   "color": "rose",
+   "h": 64,
+   "marks": [
+    {
+     "icon": "users",
+     "color": "rose"
+    }
+   ],
+   "title": "人（確認する人）",
+   "sub": "カードのボタンで判断",
+   "right": [
+    "登録する｜明日まで｜1週間後｜直して｜却下",
+    "決めるのは人"
+   ]
+  }
+ ],
+ "boundary": {
+  "layers": [
+   "ai",
+   "hub",
+   "mid",
+   "human"
+  ],
+  "logo": "google-workspace.svg",
+  "logo_w": 120,
+  "logo_h": 18,
+  "label": "の中で完結"
+ },
+ "links": [
+  {
+   "from": "ai",
+   "to": "hub",
+   "dx": 90,
+   "label": "Webhook → 受付口（Apps Script）"
+  },
+  {
+   "from": "hub",
+   "to": "ai",
+   "dx": -90,
+   "label": "ルール・過去の判断を参照",
+   "label_side": "left",
+   "strong": true,
+   "color": "violet"
+  },
+  {
+   "from": "hub",
+   "to": "card"
+  },
+  {
+   "from": "hub",
+   "to": "rules",
+   "both": true
+  },
+  {
+   "from": "hub",
+   "to": "page",
+   "both": true
+  },
+  {
+   "from": "card",
+   "to": "human",
+   "label": "カードが届く"
+  },
+  {
+   "from": "human",
+   "to": "page",
+   "label": "ボタンで決める"
+  }
+ ],
+ "inputs": {
+  "to": "ai",
+  "items": [
+   {
+    "y": 176,
+    "mark": {
+     "logo": "gmail.svg",
+     "w": 40,
+     "h": 30
+    },
+    "title": "メール",
+    "sub": "Gmail"
+   },
+   {
+    "y": 300,
+    "mark": {
+     "logo": "google-chat.svg",
+     "w": 34,
+     "h": 32
+    },
+    "title": "チャットの投稿",
+    "sub": "Google Chat"
+   },
+   {
+    "y": 420,
+    "title": "入口は増やせる",
+    "sub": "フォームなど"
+   }
+  ]
+ },
+ "outputs": {
+  "items": [
+   {
+    "y": 181,
+    "mark": {
+     "logo": "quire.svg",
+     "w": 100,
+     "h": 30
+    },
+    "title": "Quire",
+    "sub": "今回の登録先",
+    "from": "page",
+    "label": "API",
+    "label_dy": -56
+   },
+   {
+    "y": 310,
+    "mark": {
+     "logo": "google-calendar.svg",
+     "w": 36,
+     "h": 36
+    },
+    "title": "Google ToDo",
+    "sub": "カレンダー連携"
+   },
+   {
+    "y": 440,
+    "title": "Asana・Backlog など",
+    "sub": "API があれば"
+   }
+  ]
+ },
+ "callout": {
+  "text": [
+   "入口（メール・チャット）と出口（Quire・ToDo・他サービス）は差し替えられる",
+   "真ん中の「台帳に記録して、人が確認する」流れはどこでも同じ"
+  ]
+ }
+}

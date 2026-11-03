@@ -67,6 +67,7 @@ AI は下書きまで。決めるのは人。判断の記録が台帳に残り�
 
 - `layered.png`：アーキテクチャ（レイヤー構成。台帳を中心に、AI・処理・人の層を示す）※メインの図
 - `architecture.png`：処理の流れに沿った全体像（レーン構成）
+- `workflow-generic.png`：研修向けの汎用版（メール・チャットから拾い、台帳と人の確認を経て、Quire・ToDo・他サービスへ）
 - `layered-studio.png`：Workspace Studio 版（判断を Gemini に置き換え、Google Workspace の中で完結）。原稿は `how-we-built.md` のスライド 2-2
 - `build-steps.png`：作った順番（アーキテクチャ図に①〜⑥の番号）。原稿は `how-we-built.md`
 - `technical.png`：技術構成（開発者・パワーユーザー向け。ランタイム・API・セキュリティ）

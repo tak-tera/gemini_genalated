@@ -11,6 +11,8 @@
 | `google-chat.svg` | npm `@iconify-json/simple-icons`（googlechat） | 公式ロゴの単色版をブランドカラー（#00AC47）で着色 |
 | `claude.svg` | npm `@iconify-json/logos`（claude-icon） | 公式ロゴ |
 | `anthropic.svg` | npm `@iconify-json/logos`（anthropic） | 公式ロゴ |
+| `google-drive.svg` | npm `@iconify-json/logos`（google-drive） | 公式ロゴ |
+| `google-calendar.svg` | npm `@iconify-json/logos`（google-calendar） | 公式ロゴ |
 | `gemini.svg` | npm `@iconify-json/logos`（google-gemini-icon） | 公式ロゴ |
 | `quire.svg` | GitHub `quire-api/quire-api`（doc_template/quire_logo.svg） | Quire 公式 API ドキュメントのロゴ |
 
