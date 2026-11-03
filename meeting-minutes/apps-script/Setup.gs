@@ -30,7 +30,7 @@ function setupSheets() {
   values.forEach(function (r, i) {
     if (r[0] === '監視開始日時' && r[1] === '') settings.getRange(i + 1, 2).setValue(now_());
     if (r[0] === '作業フォルダID' && r[1] === '') {
-      const folder = DriveApp.createFolder('会議録音_文字起こし（作業用）');
+      const folder = DriveApp.createFolder(PREFIX + '-文字起こし（作業用）');
       settings.getRange(i + 1, 2).setValue(folder.getId());
       Logger.log('作業フォルダを作成しました: ' + folder.getUrl());
     }

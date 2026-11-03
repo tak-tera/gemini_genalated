@@ -138,7 +138,7 @@ function driveVideoMinutes_(fileId) {
 
 /** 文字起こし1区間を Google ドキュメントとして作業フォルダに保存し、その ID を返す。 */
 function saveTranscriptDoc_(settings, entry, index, total, range, text) {
-  const title = '【文字起こし】' + entry.fileName + '（' + index + '/' + total + '）';
+  const title = PREFIX + '-文字起こし-' + entry.fileName + '（' + index + '/' + total + '）';
   const doc = DocumentApp.create(title);
   const header = [
     '元ファイル: ' + entry.fileName,

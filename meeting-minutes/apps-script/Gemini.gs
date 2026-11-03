@@ -54,7 +54,7 @@ function startUpload_(entry, sizeBytes) {
       'X-Goog-Upload-Header-Content-Length': String(sizeBytes),
       'X-Goog-Upload-Header-Content-Type': String(entry.mimeType),
     },
-    json: { file: { displayName: clip_(entry.fileName, 120) } },
+    json: { file: { displayName: clip_(PREFIX + ' ' + entry.fileName, 120) } },
   });
   if (res.getResponseCode() !== 200) {
     throw new Error('アップロード開始に失敗（' + res.getResponseCode() + '）: ' + clip_(res.getContentText(), 300));
@@ -186,7 +186,7 @@ function submitBatch_(settings, entry, requests) {
     method: 'post',
     json: {
       batch: {
-        displayName: clip_('文字起こし ' + entry.fileName, 100),
+        displayName: clip_(PREFIX + ' 文字起こし ' + entry.fileName, 100),
         inputConfig: {
           requests: {
             requests: requests.map(function (r, i) {

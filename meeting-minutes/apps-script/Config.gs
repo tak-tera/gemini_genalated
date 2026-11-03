@@ -3,7 +3,10 @@
  * Gemini の API キーはコードやシートに書かず、スクリプト プロパティ GEMINI_API_KEY に保存する（docs/setup.md 参照）。
  */
 
-const APP_VERSION = '2026-11-02 初版';
+const APP_VERSION = '2026-11-03 接頭語 mtgmin';
+
+// プロジェクト共通の接頭語。Drive のフォルダ・文書名や Gemini 側の表示名の先頭に付ける（docs/naming.md 参照）
+const PREFIX = 'mtgmin';
 
 const SHEET = {
   FOLDERS: '監視フォルダ',
