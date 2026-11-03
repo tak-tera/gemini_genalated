@@ -31,7 +31,8 @@ function transcribeBody_(settings, model, fileUri, diarize) {
   if (diarize || settings.transcribeTimestamps) config.mode = mode;
   return {
     model: 'models/' + model,
-    input: [{ type: 'file', file_uri: fileUri }],
+    // ガイドの REST の例は type: 'file' だが、実際の API は受け付けない（'audio' を指定する。JavaScript の例と同じ形）
+    input: [{ type: 'audio', uri: fileUri, mime_type: 'audio/mp3' }],
     generation_config: { transcription_config: config },
   };
 }

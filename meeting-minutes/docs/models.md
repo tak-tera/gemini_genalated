@@ -77,7 +77,7 @@ Transcribe は指示文を受け付けないため、これらを書かせるこ
 
 - mp3 以外（m4a、wav、動画など）は切り出せないため、様子メモのモデルで従来どおり文字起こしします
 - Transcribe は Interactions API（`POST /v1beta/interactions`）で、`transcription_config.mode` に `{"type":"verbatim","diarization_mode":"speaker"}` を指定して呼びます（Audio transcription ガイドの形）。
-  言語は `ja-JP` を指定します（設定「Transcribe の言語」。空欄なら自動判定）
+  入力は `{"type":"audio","uri":…,"mime_type":"audio/mp3"}` の形で渡します（ガイドの REST の例にある `"type":"file"` は実際には受け付けられません）。言語は `ja-JP` を指定します（設定「Transcribe の言語」。空欄なら自動判定）
 - 発言ごとの時刻は既定で付けません（単語ごとの時刻を付けると精度が落ちることがあるため）。設定「Transcribe の時刻」をオンにすると付きます
 - `testTranscribe` を実行すると、録音の先頭約3分で呼び出しを事前に確かめられます
 - Transcribe が使えない（モデルが見つからない等）ときは、様子メモのモデルによる従来の文字起こしに自動で切り替えます
