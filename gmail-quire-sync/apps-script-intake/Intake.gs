@@ -22,7 +22,8 @@ const INTAKE = {
   RULES: '振り分けルール',
   SETTINGS: '設定',
   COLS: 29,               // 登録ログ A〜AC
-  MAX_TASKS: 3,           // 1通あたりの最大件数（Claude の判定と同じ）
+  MAX_TASKS: 3,           // メール1通あたりの最大件数（Claude の判定と同じ）
+  MAX_TASKS_CHAT: 8,      // チャット1投稿あたりの最大件数（箇条書きを1件ずつ分けるため多めに）
   MAX_PER_HOUR: 60,       // 想定外の大量送信への歯止め
 };
 
@@ -54,7 +55,9 @@ function handleIntake_(e) {
     return { ok: true, added: 0, note: 'not a task' };
   }
   let tasks = Array.isArray(data.tasks) ? data.tasks : (data.task_name || data.name ? [data] : []);
-  tasks = tasks.filter(function (t) { return t && (t.task_name || t.name); }).slice(0, INTAKE.MAX_TASKS);
+  const chatSource = /チャット|chat/i.test(String(data.source || ''));
+  tasks = tasks.filter(function (t) { return t && (t.task_name || t.name); })
+    .slice(0, chatSource ? INTAKE.MAX_TASKS_CHAT : INTAKE.MAX_TASKS);
   if (!tasks.length) return { ok: true, added: 0, note: 'no tasks' };
   if (!underRateLimit_()) return { ok: false, error: 'rate_limited' };
 
@@ -89,7 +92,8 @@ function handleIntake_(e) {
       row[2] = text_(sender);                                       // C 送信者
       row[3] = text_(subject);                                      // D 件名
       row[4] = text_(clip_(t.task_name || t.name, 60));             // E タスク名案
-      row[5] = dateText_(t.due || t.end);                           // F 終了日時
+      // F 終了日時。チャットで期限が読み取れないものは、投稿日の翌日にする
+      row[5] = dateText_(t.due || t.end) || (isChat ? nextDay_(receivedAt) : '');
       row[6] = route.project;                                       // G 判定プロジェクト
       row[7] = route.method;                                        // H 判定方法
       row[8] = route.confidence;                                    // I 確信度
@@ -349,6 +353,14 @@ function safeChatUrl_(url) {
   const s = String(url || '').trim();
   return (s.indexOf('https://chat.google.com/') === 0 || s.indexOf('https://mail.google.com/chat/') === 0)
     && !/[\s"'<>]/.test(s) ? clip_(s, 500) : '';
+}
+
+/** 「yyyy-MM-dd …」の翌日を yyyy-MM-dd で返す。 */
+function nextDay_(dateText) {
+  const m = String(dateText || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1));
+  return d.toISOString().slice(0, 10);
 }
 
 /** yyyy-MM-dd または yyyy-MM-dd HH:mm だけを通す。 */
