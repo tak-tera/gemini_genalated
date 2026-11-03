@@ -92,6 +92,23 @@ function stepPrepare_(settings, entry) {
     return;
   }
 
+  if (!entry.model) updateLog_(entry, { model: modelFor_(settings, entry) });
+  try {
+    startTranscription_(settings, entry, file);
+  } catch (e) {
+    // 選んだモデルが使えなければ、予備のモデルに切り替えてもう一度だけ試す
+    if (!isModelError_(e) || !settings.fallbackModel || String(entry.model) === settings.fallbackModel) throw e;
+    const original = String(entry.model);
+    updateLog_(entry, {
+      model: settings.fallbackModel,
+      note: original + ' が使えなかったため ' + settings.fallbackModel + ' に切り替えました（' + clip_(e.message, 150) + '）',
+    });
+    startTranscription_(settings, entry, file);
+  }
+}
+
+/** 長さを調べ、区間に分けて文字起こしを始める（バッチなら一括送信）。 */
+function startTranscription_(settings, entry, file) {
   if (!parseInt(entry.minutes, 10)) {
     const m = measureMinutes_(settings, entry, file);
     updateLog_(entry, { minutes: m.estimated ? m.minutes + '（概算）' : m.minutes });
@@ -138,7 +155,7 @@ function stepTranscribe_(settings, entry, deadline) {
   while (ids.length < total) {
     if (Date.now() > deadline - 150000) return; // 1区間に数分かかることがあるので余裕を持って次回へ
     const i = ids.length;
-    const text = generateNow_(settings, buildSegmentRequest_(settings, entry, file, segments[i], i + 1, total));
+    const text = generateNow_(entry, buildSegmentRequest_(settings, entry, file, segments[i], i + 1, total));
     ids.push(saveTranscriptDoc_(settings, entry, i + 1, total, rangeText(i), text));
     updateLog_(entry, { transcriptIds: ids.join(',') });
   }

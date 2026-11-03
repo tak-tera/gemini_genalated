@@ -69,7 +69,8 @@ function checkSetup() {
   let settings = null;
   try {
     settings = getSettings_();
-    results.push('OK   設定タブ（モデル: ' + settings.model + ' / ' + (settings.batch ? 'バッチ' : '通常') + ' / 区切り ' + settings.segmentMinutes + '分）');
+    results.push('OK   設定タブ（音声: ' + settings.audioModel + ' / 動画: ' + settings.videoModel
+      + ' / 予備: ' + (settings.fallbackModel || 'なし') + ' / ' + (settings.batch ? 'バッチ' : '通常') + ' / 区切り ' + settings.segmentMinutes + '分）');
     if (settings.workFolderId) {
       DriveApp.getFolderById(settings.workFolderId);
       results.push('OK   作業フォルダ');
@@ -97,12 +98,18 @@ function checkSetup() {
   }
 
   if (settings) {
-    try {
-      const res = geminiJson_('/v1beta/models/' + settings.model);
-      results.push('OK   Gemini API（' + (res.displayName || settings.model) + '）');
-    } catch (e) {
-      results.push('NG   Gemini API: ' + e.message);
-    }
+    [settings.audioModel, settings.videoModel, settings.fallbackModel]
+      .filter(function (m, i, all) { return m && all.indexOf(m) === i; })
+      .forEach(function (model) {
+        try {
+          const res = geminiJson_('/v1beta/models/' + model);
+          const methods = res.supportedGenerationMethods || [];
+          const batch = methods.length ? (methods.indexOf('batchGenerateContent') >= 0 ? 'バッチ対応' : 'バッチ非対応の可能性') : '';
+          results.push('OK   Gemini モデル ' + model + '（' + (res.displayName || model) + (batch ? '・' + batch : '') + '）');
+        } catch (e) {
+          results.push('NG   Gemini モデル ' + model + ': ' + e.message);
+        }
+      });
   }
   Logger.log(results.join('\n'));
 }

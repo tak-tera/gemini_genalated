@@ -118,15 +118,18 @@ function measureMinutes_(settings, entry, file) {
     const m = driveVideoMinutes_(String(entry.fileId));
     if (m) return { minutes: m, estimated: false };
   }
+  const model = String(entry.model);
   const contents = [{ role: 'user', parts: [filePart_(entry, file)] }];
-  // 動画は低画質で数える（1秒あたり 映像約66＋音声32 ≒ 100 トークン）。音声は1秒 32 トークン
   const body = entry.kind === '動画'
-    ? { generateContentRequest: { model: 'models/' + settings.model, contents: contents, generationConfig: { mediaResolution: 'MEDIA_RESOLUTION_LOW' } } }
+    ? { generateContentRequest: { model: 'models/' + model, contents: contents, generationConfig: { mediaResolution: 'MEDIA_RESOLUTION_LOW' } } }
     : { contents: contents };
-  const res = geminiJson_('/v1beta/models/' + settings.model + ':countTokens', { method: 'post', json: body });
+  const res = geminiJson_('/v1beta/models/' + model + ':countTokens', { method: 'post', json: body });
   const tokens = Number(res.totalTokens) || 0;
   if (!tokens) throw new Error('長さを調べられませんでした（トークン数 0）。');
-  const perSecond = entry.kind === '動画' ? 100 : 32;
+  // 1秒あたりのトークン数。Gemini 3 以降は音声 25、それより前は 32。
+  // 少なめの値で割ると長さを長めに見積もる（区間が1つ余分に増えるだけで、取りこぼしはない）ので、小さい方を使う。
+  // 動画は低画質で 映像約66〜70＋音声25〜32 ≒ 1秒 100 トークン前後。
+  const perSecond = entry.kind === '動画' ? 90 : 25;
   return { minutes: Math.ceil(tokens / perSecond / 60), estimated: entry.kind === '動画' };
 }
 
@@ -145,7 +148,12 @@ function buildSegments_(totalMinutes, segmentMinutes, extra) {
 /** 1区間分の generateContent リクエスト本体。 */
 function buildSegmentRequest_(settings, entry, file, seg, index, total) {
   const part = filePart_(entry, file);
-  const generationConfig = { maxOutputTokens: settings.maxOutputTokens, temperature: 0.2 };
+  const generationConfig = { maxOutputTokens: settings.maxOutputTokens };
+  if (/^gemini-2\./.test(String(entry.model))) {
+    generationConfig.temperature = 0.2; // Gemini 3 以降は既定の温度のままにする（下げると不安定になることがある）
+  } else {
+    generationConfig.thinkingConfig = { thinkingLevel: settings.thinkingLevel };
+  }
   if (entry.kind === '動画') {
     part.videoMetadata = { startOffset: seg.start + 's', endOffset: seg.end + 's' };
     if (settings.lowResVideo) generationConfig.mediaResolution = 'MEDIA_RESOLUTION_LOW';
@@ -154,6 +162,16 @@ function buildSegmentRequest_(settings, entry, file, seg, index, total) {
     contents: [{ role: 'user', parts: [part, { text: transcriptPrompt_(entry, seg, index, total) }] }],
     generationConfig: generationConfig,
   };
+}
+
+/** 音声か動画かで、設定タブのモデルを選ぶ。 */
+function modelFor_(settings, entry) {
+  return entry.kind === '動画' ? settings.videoModel : settings.audioModel;
+}
+
+/** モデルが無い・使えない・この使い方に対応していない、という種類のエラーか。 */
+function isModelError_(e) {
+  return /（404）|NOT_FOUND|not found|not supported|is not available|unsupported/i.test(String(e && e.message));
 }
 
 /** 応答から本文を取り出す。途中で切れていれば印を付ける。 */
@@ -173,8 +191,8 @@ function responseText_(response) {
 }
 
 /** 通常方式：1区間をすぐ文字起こしする。 */
-function generateNow_(settings, request) {
-  return responseText_(geminiJson_('/v1beta/models/' + settings.model + ':generateContent', {
+function generateNow_(entry, request) {
+  return responseText_(geminiJson_('/v1beta/models/' + String(entry.model) + ':generateContent', {
     method: 'post',
     json: request,
   }));
@@ -182,7 +200,7 @@ function generateNow_(settings, request) {
 
 /** バッチ方式：全区間をまとめて送る。バッチ名（batches/…）を返す。 */
 function submitBatch_(settings, entry, requests) {
-  const res = geminiJson_('/v1beta/models/' + settings.model + ':batchGenerateContent', {
+  const res = geminiJson_('/v1beta/models/' + String(entry.model) + ':batchGenerateContent', {
     method: 'post',
     json: {
       batch: {
