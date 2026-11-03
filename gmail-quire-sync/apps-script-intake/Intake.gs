@@ -166,7 +166,8 @@ function cleanLinks_(text) {
     .replace(/https?:\/\/www\.google\.com\/url\?q=https?:\/\/([^&\s"<>]+)&sa=E&source=workflows/g, function (m, host) {
       try { return decodeURIComponent(host); } catch (e) { return host; }
     })
-    .replace(/<\s*mailto:[^>]*>/g, '');
+    .replace(/<\s*mailto:[^>]*>/g, '')
+    .replace(/mailto:/gi, '');
 }
 
 /** { "gemini": "…JSON の文字列…" } のように包まれていたら中身を取り出す。 */
@@ -324,7 +325,7 @@ function chatId_(data, sender, receivedAt) {
 /** 担当者案。メールアドレスだけを通す（; 区切りで複数可）。 */
 function assignee_(v) {
   const list = Array.isArray(v) ? v : String(v || '').split(/[;；,、\s]+/);
-  return list.map(function (x) { return String(x || '').trim().toLowerCase(); })
+  return list.map(function (x) { return String(x || '').trim().toLowerCase().replace(/^mailto:/, ''); })
     .filter(function (x) { return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x); })
     .slice(0, 5).join('; ');
 }

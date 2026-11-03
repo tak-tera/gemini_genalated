@@ -71,6 +71,11 @@ function ownerEmail_() {
   return String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
 }
 
+/** 担当者案の一覧。「mailto:」付き（Studio が付けることがある）でも素のアドレスにそろえる。 */
+function assigneeList_(entry) {
+  return splitList_(entry.assignee).map(function (a) { return a.replace(/^mailto:/, ''); });
+}
+
 /**
  * この候補を操作してよいか。
  *  - 持ち主（寺尾さん）はすべて
@@ -85,7 +90,7 @@ function canOperate_(entry) {
   // 持ち主と同じ組織（ドメイン）の人だけ。組織外の投稿者・担当者案の人は操作できない
   if (viewer.split('@')[1] !== owner.split('@')[1]) return false;
   if (sourceOf_(entry) !== SOURCE.CHAT) return false;
-  const allowed = [emailAddress_(entry.sender)].concat(splitList_(entry.assignee));
+  const allowed = [emailAddress_(entry.sender).replace(/^mailto:/, '')].concat(assigneeList_(entry));
   return allowed.indexOf(viewer) >= 0;
 }
 

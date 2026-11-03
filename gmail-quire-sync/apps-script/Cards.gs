@@ -99,7 +99,7 @@ function daysFromToday_(date) {
 function assigneeLabel_(entry) {
   if (sourceOf_(entry) !== SOURCE.CHAT) return '自分';
   const owner = ownerEmail_();
-  const list = splitList_(entry.assignee).map(function (a) {
+  const list = assigneeList_(entry).map(function (a) {
     return a === owner || a === 'me' ? '自分' : a;
   });
   return list.length ? list.join('、') : '担当者なし';

@@ -294,7 +294,7 @@ function shouldLearn_(entry, projects, settings) {
 function assigneesFor_(entry, settings) {
   if (sourceOf_(entry) !== SOURCE.CHAT) return settings.assignees;
   const owner = ownerEmail_();
-  return splitList_(entry.assignee)
+  return assigneeList_(entry)
     .filter(function (a) { return a === 'me' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a); })
     .map(function (a) { return a === owner ? 'me' : a; })
     .filter(function (a, i, arr) { return arr.indexOf(a) === i; })
