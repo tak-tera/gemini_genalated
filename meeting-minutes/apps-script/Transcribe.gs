@@ -8,8 +8,9 @@
  *    同じ文字起こし文書にまとめる。Claude は両方を突き合わせて整理する。
  *  - mp3 以外の音声は切り出せないため、様子メモのモデルによる通常の文字起こしに切り替える。
  *
- * Transcribe の設定の書き方は資料によって違うため、候補を順に試し、通った書き方をスクリプト プロパティ
- * TRANSCRIBE_SHAPE に覚える（testTranscribe で事前に確かめられる）。
+ * Transcribe は Interactions API（POST /v1beta/interactions）で呼ぶ（Audio transcription ガイドの REST の形）。
+ * 話者分け（diarization_mode: "speaker"）は verbatim モードで使う。単語ごとの時刻は精度が落ちることがあるため、
+ * 設定タブ「Transcribe の時刻」がオンのときだけ付ける。
  */
 
 function isTranscribeModel_(model) {
@@ -20,95 +21,107 @@ function isMp3_(entry) {
   return /audio\/(mpeg|mp3|mpeg3|x-mp3)/i.test(String(entry.mimeType)) || /\.mp3$/i.test(String(entry.fileName));
 }
 
-/** Transcribe に渡すリクエストの候補。先頭から試し、最初に通ったものを使う。 */
-function transcribeBodies_(part) {
-  const contents = [{ role: 'user', parts: [part] }];
-  return [
-    { name: '話者分けあり（mode.diarizationMode）', body: { contents: contents, generationConfig: { transcriptionConfig: { mode: { diarizationMode: 'ENABLED' } } } } },
-    { name: '話者分けあり（transcriptionConfig.diarization）', body: { contents: contents, generationConfig: { transcriptionConfig: { diarization: true } } } },
-    { name: '話者分けあり（diarization）', body: { contents: contents, diarization: true } },
-    { name: '設定なし', body: { contents: contents } },
-  ];
+/** Transcribe のリクエスト本体。diarize が false なら話者分けなし（verbatim のまま）。 */
+function transcribeBody_(settings, model, fileUri, diarize) {
+  const config = {};
+  if (settings.transcribeLanguage) config.language_codes = [settings.transcribeLanguage];
+  const mode = { type: 'verbatim' };
+  if (diarize) mode.diarization_mode = 'speaker';
+  if (settings.transcribeTimestamps) mode.timestamp_granularities = ['word'];
+  if (diarize || settings.transcribeTimestamps) config.mode = mode;
+  return {
+    model: 'models/' + model,
+    input: [{ type: 'file', file_uri: fileUri }],
+    generation_config: { transcription_config: config },
+  };
 }
 
-/** Transcribe を呼ぶ。覚えている書き方があればそれを使い、無ければ候補を順に試す。 */
-function callTranscribe_(model, part) {
-  const candidates = transcribeBodies_(part);
-  const saved = prop_('TRANSCRIBE_SHAPE', false);
-  const order = candidates.slice().sort(function (a, b) {
-    return (a.name === saved ? -1 : 0) - (b.name === saved ? -1 : 0);
-  });
+/** Transcribe を呼ぶ。話者分けの指定で 400 になったときだけ、話者分けなしでもう一度試す。 */
+function callTranscribe_(settings, model, fileUri) {
+  const attempts = [true, false];
   const errors = [];
-  for (let i = 0; i < order.length; i++) {
-    const res = geminiFetch_('/v1beta/models/' + model + ':generateContent', { method: 'post', json: order[i].body });
+  for (let i = 0; i < attempts.length; i++) {
+    const res = geminiFetch_('/v1beta/interactions', { method: 'post', json: transcribeBody_(settings, model, fileUri, attempts[i]) });
     const code = res.getResponseCode();
     const text = res.getContentText();
     if (code === 200) {
-      if (order[i].name !== saved) setProp_('TRANSCRIBE_SHAPE', order[i].name);
-      return { shape: order[i].name, text: formatTranscribeResponse_(JSON.parse(text)), raw: text };
+      const interaction = waitInteraction_(JSON.parse(text));
+      return {
+        shape: attempts[i] ? '話者分けあり' : '話者分けなし',
+        text: formatTranscribeResponse_(interaction),
+        raw: text,
+      };
     }
-    errors.push(order[i].name + ' → ' + code + ' ' + clip_(text, 200));
-    // 書き方の誤り（400）のときだけ次の候補へ。それ以外（権限・上限・サーバー）は止める
-    if (code !== 400) break;
+    errors.push((attempts[i] ? '話者分けあり' : '話者分けなし') + ' → ' + code + ' ' + clip_(text, 300));
+    if (code !== 400) break; // 書き方の誤り以外（権限・上限・モデルなし）は止める
   }
   throw new Error('Transcribe の呼び出しに失敗: ' + errors.join(' / '));
 }
 
-/** Transcribe の応答を「[MM:SS] 話者: 発言」の行にする。形が分からなければ本文の文字だけを取り出す。 */
-function formatTranscribeResponse_(response) {
-  const lines = [];
-  const pick = function (obj, keys) {
-    for (let i = 0; i < keys.length; i++) if (obj[keys[i]] !== undefined && obj[keys[i]] !== '') return obj[keys[i]];
-    return '';
-  };
-  const seconds = function (v) {
-    if (v === '' || v === undefined) return '';
-    if (typeof v === 'object') return (Number(v.seconds) || 0) + (Number(v.nanos) || 0) / 1e9;
-    const n = parseFloat(String(v).replace(/s$/, ''));
-    return isNaN(n) ? '' : n;
-  };
-  // 発言の配列（text と、話者または時刻を持つ要素の並び）を探す
-  const findSegments = function (node, depth) {
-    if (!node || depth > 6) return null;
-    if (Array.isArray(node)) {
-      if (node.length && typeof node[0] === 'object' && node[0] &&
-        (node[0].text !== undefined || node[0].transcript !== undefined) &&
-        (node[0].speaker !== undefined || node[0].speakerLabel !== undefined || node[0].speakerTag !== undefined ||
-          node[0].startOffset !== undefined || node[0].start_offset !== undefined || node[0].startTime !== undefined)) {
-        return node;
-      }
-      for (let i = 0; i < node.length; i++) {
-        const found = findSegments(node[i], depth + 1);
-        if (found) return found;
-      }
-      return null;
+/** 応答が処理中（status が completed 以外）なら、完了するまで少し待って取り直す。 */
+function waitInteraction_(interaction) {
+  let current = interaction;
+  for (let i = 0; i < 30; i++) {
+    const status = String(current.status || 'completed');
+    if (status === 'completed') return current;
+    if (/failed|cancelled|incomplete/.test(status)) {
+      throw new Error('Transcribe の処理が ' + status + ' で終わりました: ' + clip_(JSON.stringify(current.error || ''), 200));
     }
-    if (typeof node === 'object') {
-      const keys = Object.keys(node);
-      for (let i = 0; i < keys.length; i++) {
-        const found = findSegments(node[keys[i]], depth + 1);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
+    if (!current.id) return current;
+    Utilities.sleep(5000);
+    const name = /^interactions\//.test(current.id) ? current.id : 'interactions/' + current.id;
+    current = geminiJson_('/v1beta/' + name);
+  }
+  throw new Error('Transcribe の処理が時間内に終わりませんでした。');
+}
 
-  const segments = findSegments(response, 0);
-  if (segments) {
-    segments.forEach(function (s) {
-      const t = seconds(pick(s, ['startOffset', 'start_offset', 'startTime', 'start']));
-      const speaker = pick(s, ['speaker', 'speakerLabel', 'speaker_label', 'speakerTag', 'speaker_tag']);
-      const text = String(pick(s, ['text', 'transcript'])).trim();
-      if (!text) return;
-      lines.push((t === '' ? '' : '[' + hms_(t) + '] ') + (speaker !== '' ? '話者' + speaker + ': ' : '') + text);
+/**
+ * Transcribe の応答を読みやすい行にする。
+ * 単語ごとの注記（word_info: text / speaker / start_offset）があれば話者の切り替わりで区切って
+ * 「[MM:SS] spk_1: 発言」の形にし、無ければ本文（output_text または steps の text）をそのまま返す。
+ */
+function formatTranscribeResponse_(interaction) {
+  const words = [];
+  const texts = [];
+  (interaction.steps || []).forEach(function (step) {
+    (step.content || []).forEach(function (content) {
+      if (content.text) texts.push(content.text);
+      (content.annotations || []).forEach(function (a) {
+        if (a.type === 'word_info' && a.text !== undefined) words.push(a);
+      });
     });
-    if (lines.length) return lines.join('\n');
+  });
+
+  const hasSpeaker = words.some(function (w) { return w.speaker; });
+  if (words.length && hasSpeaker) {
+    const seconds = function (v) {
+      const n = parseFloat(String(v || '').replace(/s$/, ''));
+      return isNaN(n) ? null : n;
+    };
+    const join = function (a, b) {
+      // 英数字どうしだけ空白でつなぐ（日本語は詰める）
+      return /[A-Za-z0-9]$/.test(a) && /^[A-Za-z0-9]/.test(b) ? a + ' ' + b : a + b;
+    };
+    const lines = [];
+    let cur = null;
+    words.forEach(function (w) {
+      const speaker = String(w.speaker || (cur && cur.speaker) || '');
+      if (!cur || cur.speaker !== speaker) {
+        if (cur) lines.push(cur);
+        cur = { speaker: speaker, start: seconds(w.start_offset), text: '' };
+      }
+      cur.text = join(cur.text, String(w.text));
+    });
+    if (cur) lines.push(cur);
+    return lines.map(function (l) {
+      return (l.start === null ? '' : '[' + hms_(l.start) + '] ') + l.speaker + ': ' + l.text.trim();
+    }).join('\n');
   }
-  try {
-    return responseText_(response);
-  } catch (e) {
-    return clip_(JSON.stringify(response), 20000);
-  }
+
+  if (interaction.output_text) return String(interaction.output_text);
+  if (interaction.outputText) return String(interaction.outputText);
+  if (texts.length) return texts.join('\n');
+  return clip_(JSON.stringify(interaction), 20000);
 }
 
 /** 様子メモ（話し方・場の様子・話者の特徴）の指示文。発言の書き起こしはしない。 */
@@ -214,7 +227,7 @@ function stepTranscribeSlices_(settings, entry, deadline) {
       entry.fileName + ' ' + (i + 1) + '/' + total);
     try {
       const filePartData = { fileData: { mimeType: 'audio/mp3', fileUri: part.uri } };
-      const tr = callTranscribe_(String(entry.model), filePartData);
+      const tr = callTranscribe_(settings, String(entry.model), part.uri);
 
       let notes = '（様子メモのモデルが未設定のため、様子メモはありません）';
       if (settings.noteModel) {
@@ -229,9 +242,9 @@ function stepTranscribeSlices_(settings, entry, deadline) {
       }
 
       const text = [
-        '■文字起こし（' + entry.model + '・書き方: ' + tr.shape + '）',
+        '■文字起こし（' + entry.model + '・' + tr.shape + '）',
         '※ この部分の時刻は区間の先頭（元ファイルの ' + hms_(slice.startSec) + '）からの時刻です。元ファイル上の時刻は ' + hms_(slice.startSec) + ' を足してください。',
-        '※ 話者の番号は区間ごとに振り直されることがあります。下の話者メモで同一人物をそろえてください。',
+        '※ 話者の番号（spk_1 など）は区間ごとに振り直されることがあります。下の話者メモで同一人物をそろえてください。',
         tr.text,
         '',
         notes.replace(/^\s+/, ''),
@@ -247,7 +260,7 @@ function stepTranscribeSlices_(settings, entry, deadline) {
 
 /**
  * 【手動で実行】Transcribe の呼び出しを試す。
- * 処理ログで最初に見つかった mp3 の先頭約3分を切り出し、どの書き方が通るか・どんな形で返るかをログに出す。
+ * 処理ログで最初に見つかった mp3 の先頭約3分を切り出して Transcribe に送り、整形した結果と応答そのものをログに出す。
  */
 function testTranscribe() {
   const settings = getSettings_();
@@ -259,9 +272,8 @@ function testTranscribe() {
   const end = Math.min(size, 3 * 1024 * 1024) - 1; // 128kbps で約3分
   const part = uploadDriveRangeToGemini_(fileId, 0, end, 'audio/mp3', 'テスト ' + entry.fileName);
   try {
-    PropertiesService.getScriptProperties().deleteProperty('TRANSCRIBE_SHAPE'); // 書き方を一から試す
-    const tr = callTranscribe_(settings.audioModel, { fileData: { mimeType: 'audio/mp3', fileUri: part.uri } });
-    Logger.log('通った書き方: ' + tr.shape + '\n---- 整形した結果の先頭 ----\n' + clip_(tr.text, 1500)
+    const tr = callTranscribe_(settings, settings.audioModel, part.uri);
+    Logger.log('結果: ' + tr.shape + '\n---- 整形した結果の先頭 ----\n' + clip_(tr.text, 1500)
       + '\n---- 応答そのもの（先頭） ----\n' + clip_(tr.raw, 1500));
   } finally {
     deleteGeminiFile_(part.name);
