@@ -205,8 +205,13 @@ function finishTranscription_(entry, ids) {
 function stepAppend_(settings, entry) {
   const rows = getResultLines_(String(entry.fileId));
   if (!rows.length) throw new Error('整理結果タブにこのファイルの行がありません。');
-  appendMarkdownToDoc_(String(entry.docId), rows.map(function (r) { return r.text; }));
-  updateLog_(entry, { status: STATUS.DONE, errorCount: 0 });
+  const anchor = String(entry.anchor || '').trim();
+  const found = insertMarkdownToDoc_(String(entry.docId), rows.map(function (r) { return r.text; }), anchor);
+  const values = { status: STATUS.DONE, errorCount: 0 };
+  if (anchor && !found) {
+    values.note = clip_((entry.note ? entry.note + ' / ' : '') + 'メモの見出し「' + anchor + '」が見つからなかったため、ドキュメントの先頭に追記しました。', 500);
+  }
+  updateLog_(entry, values);
   deleteResultLines_(rows);
   if (settings.keepDays === 0) {
     trashTranscripts_(entry);
