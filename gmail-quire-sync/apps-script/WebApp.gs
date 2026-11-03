@@ -11,11 +11,14 @@
  *  - 編集ページから送られた内容は、サーバー側で項目ごとに形式と長さを確かめてから使う
  *
  *   ?action=approve&id=…&sig=… … 判定どおりの内容で登録
+ *   ?action=due1／due7&id=…&sig=… … 期日を明日／1週間後にして登録
  *   ?action=edit&id=…&sig=…    … 内容を直して登録するページを表示（旧カードの choose も同じページ）
  *   ?action=reject&id=…&sig=…  … 却下として記録
  */
 
-const ACTIONS = ['approve', 'edit', 'choose', 'reject'];
+const ACTIONS = ['approve', 'due1', 'due7', 'edit', 'choose', 'reject'];
+// カードのクイック登録：期日を「今日から N 日後」にして、判定どおりの内容で登録する
+const QUICK_DUE_DAYS = { due1: 1, due7: 7 };
 const MAX_TASKS_PER_EDIT = 5;
 const PRIORITIES = [
   { value: -1, label: '低' },
@@ -41,6 +44,7 @@ function doGet(e) {
 
   if (p.action === 'edit' || p.action === 'choose') return editPage_(entry, p.action, p.sig);
   if (p.action === 'approve') return resultPage_(decide_(p.id, true));
+  if (QUICK_DUE_DAYS[p.action]) return resultPage_(decide_(p.id, true, null, { dueDays: QUICK_DUE_DAYS[p.action] }));
   return resultPage_(decide_(p.id, false));
 }
 
@@ -188,7 +192,7 @@ function validateDeps_(list, index, count, entryId, snap, entries, n) {
  * 承認・却下の処理。二度押しされても1回しか登録しない。
  * 戻り値: { title, detail, url, entry }
  */
-function decide_(messageId, approve, projectName) {
+function decide_(messageId, approve, projectName, opts) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
@@ -211,9 +215,9 @@ function decide_(messageId, approve, projectName) {
 
     updateLog_(entry.row, { status: STATUS.APPROVED });
     try {
-      const result = registerEntry_(entry, projectName || String(entry.judgedProject));
+      const result = registerEntry_(entry, projectName || String(entry.judgedProject), opts);
       const where = result.project.name + (result.section ? ' / ' + result.section : '');
-      return { title: '登録しました', detail: '登録先: ' + where, notes: result.notes, url: safeQuireUrl_(result.task.url), entry: entry };
+      return { title: '登録しました', detail: '登録先: ' + where + (result.due ? '／期日: ' + result.due : ''), notes: result.notes, url: safeQuireUrl_(result.task.url), entry: entry };
     } catch (e) {
       updateLog_(entry.row, { status: STATUS.ERROR, reason: String(entry.reason) + ' / エラー: ' + e.message });
       return { title: '登録に失敗しました', detail: clip_(e.message, 300), entry: entry };

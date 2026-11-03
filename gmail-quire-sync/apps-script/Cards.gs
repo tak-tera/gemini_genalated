@@ -34,6 +34,8 @@ function approvalCard_(entry, selectedName, entries, project, snapshot) {
 
   const buttons = [
     linkButton_('登録する', actionUrl_('approve', entry.messageId), true),
+    linkButton_('登録（明日まで）', actionUrl_('due1', entry.messageId)),
+    linkButton_('登録（1週間後）', actionUrl_('due7', entry.messageId)),
     linkButton_('内容を直して登録', actionUrl_('edit', entry.messageId)),
     linkButton_('却下', actionUrl_('reject', entry.messageId)),
   ];

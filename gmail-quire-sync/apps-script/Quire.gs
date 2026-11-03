@@ -103,7 +103,7 @@ function projectIdFromTaskUrl_(url) {
  * セクションと依存関係は、判定どおりのプロジェクトに入れるときだけ使う（番号やセクションはプロジェクトごとのため）。
  * 戻り値: { task, project, notes }
  */
-function registerEntry_(entry, projectName) {
+function registerEntry_(entry, projectName, opts) {
   const settings = getSettings_();
   const projects = getProjects_(false);
   const project = findProjectByName_(projectName || entry.judgedProject, projects)
@@ -123,7 +123,8 @@ function registerEntry_(entry, projectName) {
     if (!section) notes.push('セクション「' + clip_(entry.section, 60) + '」が見つからないため、プロジェクト直下に登録');
   }
 
-  const schedule = defaultSchedule_(entry);
+  // クイック登録（カードの「明日まで」「1週間後」）は、今日を開始、N 日後を期日にする
+  const schedule = opts && opts.dueDays ? quickSchedule_(opts.dueDays) : defaultSchedule_(entry);
   const created = createTaskInSection_(project, section, buildTaskBody_(entry, settings, {
     name: entry.taskName || entry.subject,
     start: toQuireDateTime_(schedule.start.date, schedule.start.time),
@@ -135,6 +136,7 @@ function registerEntry_(entry, projectName) {
 
   const updates = {
     start: partsText_(schedule.start),
+    due: partsText_(schedule.end),
     status: STATUS.DONE,
     taskUrl: safeQuireUrl_(task.url),
     taskOid: task.oid || '',
@@ -162,7 +164,8 @@ function registerEntry_(entry, projectName) {
     notes.push('依存関係の処理でエラー: ' + clip_(e.message, 100));
   }
   if (notes.length) updateLog_(entry.row, { depNote: clip_(notes.join(' / '), 500) });
-  return { task: task, project: project, section: created.section ? created.section.name : '', notes: notes };
+  return { task: task, project: project, section: created.section ? created.section.name : '', notes: notes,
+    due: partsText_(schedule.end) };
 }
 
 /**
@@ -247,6 +250,17 @@ function registerEditedEntry_(entry, form) {
     updateLog_(entry.row, { reason: clip_(String(entry.reason) + ' / ' + error + note, 500) });
   }
   return { created: created, error: error };
+}
+
+/** 今日を開始、days 日後を期日にした日程（日付のみ）。 */
+function quickSchedule_(days) {
+  const tz = Session.getScriptTimeZone();
+  const today = new Date();
+  const end = new Date(today.getTime() + days * 86400000);
+  return {
+    start: { date: Utilities.formatDate(today, tz, 'yyyy-MM-dd'), time: '' },
+    end: { date: Utilities.formatDate(end, tz, 'yyyy-MM-dd'), time: '' },
+  };
 }
 
 /** セクションの下にタスクを作る。セクションに作れなければプロジェクト直下に作り、notes に残す。 */

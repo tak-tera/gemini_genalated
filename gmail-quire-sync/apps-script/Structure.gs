@@ -109,6 +109,8 @@ function readSnapshotRows_() {
 }
 
 function writeSnapshotRows_(rows) {
+  delete MEMO_.snapshot;
+  try { CacheService.getScriptCache().remove(SNAP_CACHE_KEY); } catch (e) { /* 無くてもよい */ }
   const sh = snapshotSheet_();
   const last = sh.getLastRow();
   if (last >= 2) sh.getRange(2, 1, last - 1, SNAP_HEADERS.length).clearContent();
@@ -122,7 +124,22 @@ function sheetText_(value) {
 }
 
 /** スナップショットをプロジェクトID ごとにまとめる。{ id: { fetchedAt, sections: [...], tasks: [...] } } */
+// スナップショットは毎時の更新か「Quire から最新を読み込む」でしか変わらないので、10分間キャッシュする
+const SNAP_CACHE_KEY = 'qt-snapshot-v1';
+
 function getSnapshot_() {
+  if (MEMO_.snapshot) return MEMO_.snapshot;
+  const cache = CacheService.getScriptCache();
+  try {
+    const hit = cache.get(SNAP_CACHE_KEY);
+    if (hit) return (MEMO_.snapshot = JSON.parse(hit));
+  } catch (e) { /* 読めなければシートから */ }
+  const map = readSnapshot_();
+  try { cache.put(SNAP_CACHE_KEY, JSON.stringify(map), 600); } catch (e) { /* 大きすぎるときは保存しない */ }
+  return (MEMO_.snapshot = map);
+}
+
+function readSnapshot_() {
   const map = {};
   readSnapshotRows_().forEach(function (r) {
     const pid = String(r[2]);

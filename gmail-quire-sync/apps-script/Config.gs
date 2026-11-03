@@ -5,7 +5,7 @@
  */
 
 // Web ページの下に表示するバージョン。デプロイが最新か確かめるときに使う
-const APP_VERSION = '2026-11-02 チャット対応';
+const APP_VERSION = '2026-11-03 カード改善・高速化';
 
 const SHEET = {
   RULES: '振り分けルール',

@@ -1,17 +1,31 @@
 /** スプレッドシートの読み書き。 */
 
+// 1回の実行の中で読んだものを使い回す（スプレッドシートを開く処理と読み込みは時間がかかるため）。
+// 書き込んだら該当する分を捨てて、次に読むときは読み直す
+const MEMO_ = {};
+
 function spreadsheet_() {
-  return SpreadsheetApp.openById(prop_('SPREADSHEET_ID'));
+  if (!MEMO_.ss) MEMO_.ss = SpreadsheetApp.openById(prop_('SPREADSHEET_ID'));
+  return MEMO_.ss;
 }
 
 function sheet_(name) {
-  const sh = spreadsheet_().getSheetByName(name);
-  if (!sh) throw new Error('シート「' + name + '」が見つかりません。');
-  return sh;
+  const key = 'sheet:' + name;
+  if (!MEMO_[key]) {
+    const sh = spreadsheet_().getSheetByName(name);
+    if (!sh) throw new Error('シート「' + name + '」が見つかりません。');
+    MEMO_[key] = sh;
+  }
+  return MEMO_[key];
 }
 
 /** 設定タブを読み込む。項目名（A列）で値（B列）を引く。 */
 function getSettings_() {
+  if (!MEMO_.settings) MEMO_.settings = readSettings_();
+  return MEMO_.settings;
+}
+
+function readSettings_() {
   const values = sheet_(SHEET.SETTINGS).getDataRange().getValues();
   const map = {};
   values.slice(1).forEach(function (r) {
@@ -29,6 +43,12 @@ function getSettings_() {
 
 /** 振り分けルールのプロジェクト一覧。onlyActive が true なら有効な行だけ。 */
 function getProjects_(onlyActive) {
+  const key = onlyActive ? 'projects:active' : 'projects:all';
+  if (!MEMO_[key]) MEMO_[key] = readProjects_(onlyActive);
+  return MEMO_[key];
+}
+
+function readProjects_(onlyActive) {
   const values = sheet_(SHEET.RULES).getDataRange().getValues();
   const list = [];
   values.slice(1).forEach(function (r, i) {
@@ -66,6 +86,11 @@ function splitList_(text) {
 
 /** 登録ログの全行を読む。各行は COL のキー名でアクセスできるオブジェクト。 */
 function getLogEntries_() {
+  if (!MEMO_.log) MEMO_.log = readLogEntries_();
+  return MEMO_.log;
+}
+
+function readLogEntries_() {
   const values = sheet_(SHEET.LOG).getDataRange().getValues();
   return values.slice(1).map(function (r, i) {
     const entry = { row: i + 2 };
@@ -80,6 +105,7 @@ function findLogEntry_(messageId) {
 
 /** 登録ログの1行に複数の値を書き込む。values は { 列キー: 値 }。 */
 function updateLog_(row, values) {
+  delete MEMO_.log;
   const sh = sheet_(SHEET.LOG);
   Object.keys(values).forEach(function (key) {
     if (!COL[key]) throw new Error('不明な列: ' + key);
@@ -89,6 +115,7 @@ function updateLog_(row, values) {
 
 /** 元の行をもとに、登録ログへ1行追加する（1通から複数タスクを作ったとき）。values で列を上書きする。 */
 function appendLogCopy_(entry, newId, values) {
+  delete MEMO_.log;
   const row = [];
   Object.keys(COL).forEach(function (key) {
     const v = values.hasOwnProperty(key) ? values[key] : entry[key];
