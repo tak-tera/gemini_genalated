@@ -113,12 +113,12 @@ function filePart_(entry, file) {
 }
 
 /** 長さ（分）を調べる。動画は Drive のメタデータ、音声は Gemini のトークン数（1秒 = 32 トークン）から計算する。 */
-function measureMinutes_(settings, entry, file) {
+function measureMinutes_(settings, entry, file, countModel) {
   if (entry.kind === '動画') {
     const m = driveVideoMinutes_(String(entry.fileId));
     if (m) return { minutes: m, estimated: false };
   }
-  const model = String(entry.model);
+  const model = String(countModel || entry.model);
   const contents = [{ role: 'user', parts: [filePart_(entry, file)] }];
   const body = entry.kind === '動画'
     ? { generateContentRequest: { model: 'models/' + model, contents: contents, generationConfig: { mediaResolution: 'MEDIA_RESOLUTION_LOW' } } }

@@ -93,6 +93,24 @@ function stepPrepare_(settings, entry) {
   }
 
   if (!entry.model) updateLog_(entry, { model: modelFor_(settings, entry) });
+
+  // Transcribe モード：mp3 なら区間ごとに切り出して送る。mp3 以外は様子メモのモデルで通常どおり文字起こしする
+  if (isTranscribeModel_(entry.model)) {
+    if (isMp3_(entry) && settings.noteModel) {
+      if (!parseInt(entry.minutes, 10)) {
+        const m = measureMinutes_(settings, entry, file, settings.noteModel); // Transcribe は長さの計算に使えないことがある
+        updateLog_(entry, { minutes: m.minutes });
+      }
+      updateLog_(entry, { status: STATUS.TRANSCRIBING, batchName: '', transcriptIds: '' });
+      return;
+    }
+    updateLog_(entry, {
+      model: settings.noteModel || settings.fallbackModel,
+      note: isMp3_(entry) ? '様子メモのモデルが未設定のため、Transcribe を使わずに文字起こしします。'
+        : 'mp3 以外の音声は区間ごとに切り出せないため、Transcribe を使わずに文字起こしします。',
+    });
+  }
+
   try {
     startTranscription_(settings, entry, file);
   } catch (e) {
@@ -128,6 +146,20 @@ function startTranscription_(settings, entry, file) {
 
 /** 区間ごとの文字起こしを進め、終わったら文字起こし文書を保存して「整理待ち」にする。 */
 function stepTranscribe_(settings, entry, deadline) {
+  if (isTranscribeModel_(entry.model)) {
+    try {
+      stepTranscribeSlices_(settings, entry, deadline);
+    } catch (e) {
+      // Transcribe が使えなければ、様子メモのモデルによる通常の文字起こしに切り替えて最初からやり直す
+      if (!isModelError_(e) || !settings.noteModel) throw e;
+      trashTranscripts_(entry);
+      updateLog_(entry, {
+        status: STATUS.PREPARING, model: settings.noteModel, transcriptIds: '',
+        note: 'Transcribe が使えなかったため ' + settings.noteModel + ' に切り替えました（' + clip_(e.message, 150) + '）',
+      });
+    }
+    return;
+  }
   const segments = segmentsOf_(settings, entry);
   const total = segments.length;
   const rangeText = function (i) { return hms_(segments[i].start) + '〜' + hms_(segments[i].end); };

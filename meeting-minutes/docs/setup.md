@@ -36,7 +36,7 @@
 3. エディタに戻り、`apps-script/` フォルダのファイルをすべて作成して中身を貼り付けます。
    - `appsscript.json` は既存のものを丸ごと置き換え（Google Docs API の拡張サービスが自動で有効になります）
    - `.gs` ファイルは「＋」→「スクリプト」で同じ名前（拡張子なし）で作成
-     （`Config` / `Sheet` / `Drive` / `Gemini` / `Prompt` / `DocsWriter` / `Jobs` / `Setup`）
+     （`Config` / `Sheet` / `Drive` / `Gemini` / `Transcribe` / `Prompt` / `DocsWriter` / `Jobs` / `Setup`）
    - 最初からある `コード.gs` は削除してかまいません
 4. 保存します。
 
@@ -71,6 +71,8 @@
    - **音声のモデル / 動画のモデル**: 既定はどちらも `gemini-4-argon`
    - **予備のモデル**: 既定は `gemini-3.1-pro`。上のモデルが使えないとき自動で切り替えます。
      モデル名は AI Studio のモデル一覧の表記に合わせてください（`checkSetup` で名前が正しいか確かめられます）
+   - **Transcribe の区切り（分）/ 様子メモのモデル**: 音声のモデルを `gemini-3.5-transcribe` にしたときだけ使います（`docs/models.md` 参照）。
+     使う場合は、手順 6 で `testTranscribe` を実行して呼び出しが通るか確かめてください
    - **思考レベル**: 既定は「低」（文字起こしに深い推論は不要なため、料金を抑える）
    - 選び方の理由は `docs/models.md` を参照
    - **処理方式**: `バッチ`（約半額・結果は通常数分〜数時間）か `通常`（すぐ実行）
