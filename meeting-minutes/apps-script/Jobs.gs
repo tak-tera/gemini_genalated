@@ -48,6 +48,11 @@ function runPipeline() {
 /** Drive のファイルを少しずつ読み出し、Gemini へ分割アップロードする。途中で時間切れになれば次回続きから。 */
 function stepUpload_(settings, entry, deadline) {
   const size = DriveApp.getFileById(String(entry.fileId)).getSize();
+  if (!size) {
+    // 中身のないファイル（ショートカットそのもの等）は送れない
+    updateLog_(entry, { status: STATUS.SKIPPED, note: 'ファイルの中身が空（0 バイト）のため処理できません。' });
+    return;
+  }
   let uploadUrl = String(entry.uploadUrl || '');
   let offset = 0;
 
