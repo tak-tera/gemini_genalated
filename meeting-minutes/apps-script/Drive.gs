@@ -1,6 +1,9 @@
 /** Google ドライブまわり：新しいファイルの検出、分割読み出し、文字起こし文書の保存と削除。 */
 
-/** 監視フォルダを調べ、まだ処理ログにない音声・動画ファイルを「待機」で追加する。 */
+/**
+ * 監視フォルダを調べ、まだ処理ログにない音声・動画ファイルを「待機」で追加する。
+ * 音声・動画へのショートカットも対象（リンク先のファイルを処理する）。
+ */
 function scanFolders_(settings) {
   const known = {};
   getLogEntries_().forEach(function (e) { known[String(e.fileId)] = true; });
@@ -16,13 +19,28 @@ function scanFolders_(settings) {
       return;
     }
     while (files.hasNext()) {
-      const file = files.next();
+      const item = files.next();
+      // ショートカットなら、リンク先のファイルを処理する。
+      // 「置いた日時」はショートカットを作った日時とし、古い録画でもショートカットを置けば処理対象になる
+      let file = item;
+      let viaShortcut = false;
+      if (String(item.getMimeType()) === MimeType.SHORTCUT) {
+        const targetId = item.getTargetId();
+        if (!targetId || known[targetId]) continue;
+        try {
+          file = DriveApp.getFileById(targetId);
+        } catch (e) {
+          Logger.log('ショートカットのリンク先を開けません（' + item.getName() + '）: ' + e.message);
+          continue;
+        }
+        viaShortcut = true;
+      }
       const id = file.getId();
       if (known[id]) continue;
       const mime = String(file.getMimeType() || '');
       const kind = mediaKind_(mime, file.getName());
       if (!kind) continue;
-      if (settings.since && file.getDateCreated() < settings.since) continue;
+      if (settings.since && item.getDateCreated() < settings.since) continue;
       if (file.getLastUpdated() > settleLimit) continue; // まだ同期中かもしれない
 
       const sizeMb = Math.round(file.getSize() / 1024 / 1024 * 10) / 10;
@@ -42,7 +60,8 @@ function scanFolders_(settings) {
         status: tooLarge ? STATUS.SKIPPED : STATUS.WAITING,
         uploadedBytes: 0,
         errorCount: 0,
-        note: tooLarge ? 'ファイルが大きすぎます（上限 ' + settings.maxSizeMb + 'MB）。分割するか、音声だけを取り出してから置き直してください。' : '',
+        note: tooLarge ? 'ファイルが大きすぎます（上限 ' + settings.maxSizeMb + 'MB）。分割するか、音声だけを取り出してから置き直してください。'
+          : (viaShortcut ? 'ショートカット経由（元のファイルはそのままの場所で処理）' : ''),
         updatedAt: now_(),
       });
       known[id] = true;
