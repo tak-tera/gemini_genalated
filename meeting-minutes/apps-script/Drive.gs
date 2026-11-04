@@ -94,6 +94,20 @@ function dateFromFileName_(name) {
     // 20261021_1400 / 20261021-140005 / 20261021
     /(20\d{2})(\d{2})(\d{2})(?:[ T_\-]?(\d{2})(\d{2}))?/,
   ];
+  // Screencastify などの英語表記: November 4, 2026 3:36 PM / Nov 4, 2026
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const en = s.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2}),?\s+(20\d{2})(?:[ ,]+(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]\.?m\.?)?)?/i);
+  if (en) {
+    let text = en[3] + '-' + pad(months.indexOf(en[1].toLowerCase()) + 1) + '-' + pad(Number(en[2]));
+    if (en[4] !== undefined) {
+      let h = Number(en[4]);
+      const ampm = String(en[6] || '').toLowerCase().replace(/\./g, '');
+      if (ampm === 'pm' && h < 12) h += 12;
+      if (ampm === 'am' && h === 12) h = 0;
+      text += ' ' + pad(h) + ':' + en[5];
+    }
+    return text;
+  }
   for (let i = 0; i < patterns.length; i++) {
     const m = s.match(patterns[i]);
     if (!m) continue;
