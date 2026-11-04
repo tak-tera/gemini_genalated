@@ -62,19 +62,21 @@ function mediaKind_(mime, name) {
   return '';
 }
 
-/** Gemini に渡す MIME タイプ。Drive が曖昧な型（application/octet-stream など）を返したときは拡張子から決める。 */
+/**
+ * Gemini に渡す MIME タイプ。拡張子が分かればそれを優先する。
+ * Drive は m4a を audio/mpeg（mp3 の型）と記録することがあり、そのまま渡すと Gemini が音声を読めないため。
+ */
 function uploadMimeType_(mime, name) {
-  if (/^(audio|video)\//.test(mime)) {
-    if (mime === 'audio/x-m4a' || mime === 'audio/mp4a-latm') return 'audio/mp4';
-    return mime;
-  }
   const map = {
     mp3: 'audio/mp3', m4a: 'audio/mp4', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg',
     flac: 'audio/flac', aiff: 'audio/aiff', aif: 'audio/aiff', opus: 'audio/ogg', wma: 'audio/x-ms-wma',
     mp4: 'video/mp4', mov: 'video/mov', webm: 'video/webm', mkv: 'video/x-matroska', avi: 'video/avi',
     mpeg: 'video/mpeg', mpg: 'video/mpg', '3gp': 'video/3gpp', wmv: 'video/wmv', flv: 'video/x-flv',
   };
-  return map[String(name || '').toLowerCase().split('.').pop()] || mime;
+  const byExt = map[String(name || '').toLowerCase().split('.').pop()];
+  if (byExt) return byExt;
+  if (mime === 'audio/x-m4a' || mime === 'audio/mp4a-latm') return 'audio/mp4';
+  return mime;
 }
 
 /**

@@ -173,6 +173,7 @@ function stepTranscribe_(settings, entry, deadline) {
       recordError_(entry, 'バッチが失敗しました: ' + result.message);
       return;
     }
+    if (stopIfAllEmpty_(entry, result.texts)) return;
     const ids = result.texts.map(function (text, i) {
       return saveTranscriptDoc_(settings, entry, i + 1, total, i < total ? rangeText(i) : '', text);
     });
@@ -188,10 +189,30 @@ function stepTranscribe_(settings, entry, deadline) {
     if (Date.now() > deadline - 150000) return; // 1区間に数分かかることがあるので余裕を持って次回へ
     const i = ids.length;
     const text = generateNow_(entry, buildSegmentRequest_(settings, entry, file, segments[i], i + 1, total));
+    if (i === 0 && stopIfAllEmpty_(entry, [text])) return; // 最初の区間が空なら、残りも読めないとみて止める
     ids.push(saveTranscriptDoc_(settings, entry, i + 1, total, rangeText(i), text));
     updateLog_(entry, { transcriptIds: ids.join(',') });
   }
   finishTranscription_(entry, ids);
+}
+
+/** 文字起こしが空に見えるか（音声を読めなかったときのモデルの返事、または極端に短い）。 */
+function looksEmptyTranscript_(text) {
+  const body = String(text || '').replace(/■[^\n]*\n?/g, '').trim();
+  if (/添付されていない|添付されていません|音声ファイルが(見当たり|ありません)|アップロードしてください|この区間に音声はありません|no audio|please (upload|provide)/i.test(body)
+    && body.length < 400) return true;
+  return body.length < 80;
+}
+
+/** すべての区間が空なら、音声を読めなかったとして「エラー」にする。止めたら true。 */
+function stopIfAllEmpty_(entry, texts) {
+  if (!texts.length || !texts.every(looksEmptyTranscript_)) return false;
+  deleteGeminiFile_(String(entry.geminiFile));
+  updateLog_(entry, {
+    status: STATUS.ERROR, geminiFile: '', batchName: '', transcriptIds: '',
+    note: '文字起こしが空でした（Gemini が音声を読めなかった可能性）。ファイル形式（H列の MIME タイプ）を確かめ、直してから retryErrors を実行してください。',
+  });
+  return true;
 }
 
 function finishTranscription_(entry, ids) {
