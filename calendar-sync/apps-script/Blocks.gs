@@ -102,7 +102,11 @@ function syncBlocks_(ctx, org, mainEvents, orgEvents) {
 function mainSkipReason_(e, org, ctx) {
   if (e.eventType && e.eventType !== 'default') return '予定の種類: ' + e.eventType;
   // 「空き時間」の設定は見ない（終日予定は既定で空き時間になるため）。分類ルールで判断する
-  if (myResponse_(e) === 'declined') return '欠席と回答済み';
+  // 他の人からの招待は「承諾」したものだけ（社外コミュニティなどの参加未定・辞退はブロックしない）
+  const res = myResponse_(e);
+  if (res === 'declined') return '欠席と回答済み';
+  if (res === 'needsAction') return '招待に未回答（参加未定）';
+  if (res === 'tentative') return '招待に「未定」と回答';
   const owner = orgOfMainEvent_(e, ctx.orgs);
   if (owner === org.code) return org.code + ' の予定（接頭辞・色・同期元）';
   return '';
