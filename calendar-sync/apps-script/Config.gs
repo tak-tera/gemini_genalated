@@ -3,7 +3,7 @@
  * 組織・分類・タイトル整形の中身はスプレッドシートで管理する（setupSheets で初期値を作成）。
  */
 
-const APP_VERSION = '2026-11-05 初版';
+const APP_VERSION = '2026-11-05 プレビュー反映1';
 const TZ = 'Asia/Tokyo';
 
 const SHEET = {

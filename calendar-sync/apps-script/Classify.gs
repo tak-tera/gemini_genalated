@@ -2,15 +2,19 @@
 
 /**
  * 予定がどの組織のものか（接頭辞または色）。該当なしは ''。
- * 「（TU 打ち合わせ…）」のように先頭がカッコでも接頭辞として見る。
+ * 「（TU 打ち合わせ…）」のように先頭がカッコでも、「[調整中] TU …」のように先頭に札が付いていても接頭辞として見る。
  */
 function orgOfMainEvent_(e, orgs) {
   const p = privProps_(e);
   if (p[PROP.ORG]) return p[PROP.ORG];
-  const title = String(e.summary || '').replace(/^[\s（(【\[]+/, '');
+  const raw = String(e.summary || '');
+  const titles = [
+    raw.replace(/^[\s（(【\[]+/, ''),
+    raw.replace(/^(?:\s*(?:\[[^\]]*\]|【[^】]*】|［[^］]*］))+\s*/, ''),
+  ];
   for (let i = 0; i < orgs.length; i++) {
     const o = orgs[i];
-    if (o.prefix && title.indexOf(o.prefix) === 0) return o.code;
+    if (o.prefix && titles.some(function (t) { return t.indexOf(o.prefix) === 0; })) return o.code;
   }
   for (let i = 0; i < orgs.length; i++) {
     if (orgs[i].colorId && e.colorId === orgs[i].colorId) return orgs[i].code;

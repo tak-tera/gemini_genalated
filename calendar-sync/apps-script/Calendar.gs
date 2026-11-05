@@ -43,19 +43,27 @@ function ymd_(d) {
   return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
 }
 
-function fmt_(d) {
-  return Utilities.formatDate(d, TZ, 'M/d(E) HH:mm');
+/** 「11/5(木)」。曜日は日本語で出す（formatDate の E は英語になるため）。 */
+function day_(d) {
+  const dow = Number(Utilities.formatDate(d, TZ, 'u')) % 7;
+  return Utilities.formatDate(d, TZ, 'M/d') + '(' + '日月火水木金土'.charAt(dow) + ')';
 }
 
+function fmt_(d) {
+  return day_(d) + ' ' + Utilities.formatDate(d, TZ, 'HH:mm');
+}
+
+/** 「11/5(木) 10:30–11:00」。日をまたぐときは終了日も出す。 */
 function fmtRange_(s, e) {
-  return fmt_(s) + '–' + Utilities.formatDate(e, TZ, 'HH:mm');
+  const end = ymd_(s) === ymd_(e) ? Utilities.formatDate(e, TZ, 'HH:mm') : fmt_(e);
+  return fmt_(s) + '–' + end;
 }
 
 /** 予定日時の表示。終日予定は「11/6(金) 終日」。 */
 function whenText_(r) {
   if (!r.allDay) return fmtRange_(r.start, r.end);
   const last = new Date(r.end.getTime() - 24 * 3600000);
-  const d = function (x) { return Utilities.formatDate(x, TZ, 'M/d(E)'); };
+  const d = day_;
   return d(r.start) + (ymd_(last) === ymd_(r.start) ? '' : '–' + d(last)) + ' 終日';
 }
 
