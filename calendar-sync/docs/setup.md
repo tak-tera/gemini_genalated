@@ -6,7 +6,20 @@
 
 - メインのアカウント（terao.takeshi@t-consulting.biz）
 - メインのカレンダーリストに TU カレンダー（takeshi.terao.c4@tohoku.ac.jp）が追加され、**変更権限**があること（確認済み）
-- 新しいスプレッドシート（名前の例:「カレンダー半同期 設定」）
+- 管理用スプレッドシート [CALSYNC_管理シート](https://docs.google.com/spreadsheets/d/1Hifm7_gMFGv3LaOvyLeXXEZHujcjObHBbL7qZHhlkzA/edit)（作成済み）
+
+### Google ドライブの置き場所
+
+このツールの成果物は、接頭語 **CALSYNC** を付けて次のフォルダに置きます。
+
+```
+Claude Code開発/
+└─ CALSYNC_カレンダー半同期/      … このツール用のフォルダ
+   └─ CALSYNC_管理シート          … 設定・分類ルール・同期ログ（スプレッドシート）
+```
+
+- フォルダ: https://drive.google.com/drive/folders/1BHB5brYDkBu_Rd82M50JvQroHnSl-5bf
+- 追加のファイルも `CALSYNC_` で始まる名前にして、このフォルダに置く
 
 ## 1. Apps Script プロジェクトを作る
 
@@ -18,7 +31,7 @@
 
 ## 2. スプレッドシートをつなぐ
 
-1. スプレッドシートの URL `https://docs.google.com/spreadsheets/d/【ここ】/edit` の部分を控えます。
+1. スプレッドシートの URL `https://docs.google.com/spreadsheets/d/【ここ】/edit` の部分を控えます（CALSYNC_管理シートの ID は `1Hifm7_gMFGv3LaOvyLeXXEZHujcjObHBbL7qZHhlkzA`）。
 2. 「プロジェクトの設定」→「スクリプト プロパティ」に `SPREADSHEET_ID` = 控えた ID を追加。
 3. エディタで `setupSheets` を実行（初回は権限の承認画面が出ます）。
    「設定」「組織」「分類ルール」「タイトル整形」「同期ログ」のタブが初期値つきでできます。
