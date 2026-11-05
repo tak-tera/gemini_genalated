@@ -107,6 +107,20 @@
 
 ---
 
+## clasp でコードを送る（任意）
+
+Apps Script エディタへの手での貼り付けの代わりに、clasp でリポジトリの内容をそのまま送れます。
+
+1. https://script.google.com/home/usersettings で「Google Apps Script API」をオンにする
+2. 自分の PC で `npm install -g @google/clasp` → `clasp login`。ホームフォルダに `.clasprc.json` ができる
+3. Claude Code のクラウド環境の設定で、環境変数 `CLASPRC_JSON` に `.clasprc.json` の中身を登録する（チャットには貼らない）
+4. スクリプト ID は `apps-script/.clasp.json` に書いてある（プロジェクトを作り直したら書き換える）
+5. `meeting-minutes/scripts/clasp-push.sh` を実行すると送られる（`status` を付けると送るファイルの一覧だけ表示）
+
+- 送るとエディタ上の中身は上書きされる。修正はリポジトリ側で行う
+- スクリプト プロパティとトリガーは変わらない
+- このログイン情報があれば、自分のすべての Apps Script プロジェクトを書き換えられる。不要になったら Google アカウントの「サードパーティのアクセス」から clasp の許可を取り消す
+
 ## うまくいかないとき
 
 | 症状 | 確認すること |

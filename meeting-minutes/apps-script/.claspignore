@@ -1,0 +1,4 @@
+# Apps Script に送るのは .gs と appsscript.json だけ
+**/**
+!*.gs
+!appsscript.json
