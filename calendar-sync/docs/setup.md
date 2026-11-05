@@ -12,9 +12,9 @@
 
 1. メインのアカウントで https://script.google.com/ →「新しいプロジェクト」。名前の例: `カレンダー半同期`
 2. 左の歯車「プロジェクトの設定」で「`appsscript.json` マニフェスト ファイルをエディタで表示する」にチェック。
-3. `apps-script/` のファイルをすべて作成して貼り付けます。
-   - `appsscript.json` は丸ごと置き換え（Calendar API の高度なサービスもこれで有効になります）
-   - `.gs` は同じ名前で作成: `Config` / `Sheet` / `Calendar` / `Classify` / `Blocks` / `Mirror` / `Jobs` / `Setup`
+3. コードは clasp で送ります（[../../docs/clasp.md](../../docs/clasp.md)）。
+   スクリプト ID を `calendar-sync/.clasp.json` に入れて main にマージするか、手元で `npm run calendar:push`。
+   `appsscript.json` で Calendar API の高度なサービスも有効になります。
 
 ## 2. スプレッドシートをつなぐ
 

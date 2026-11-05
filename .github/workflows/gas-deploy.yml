@@ -1,0 +1,120 @@
+# Apps Script への自動反映（clasp）
+# - プルリクエスト: 構文チェックだけ
+# - main への push: 変わったプロジェクトを clasp push。Web アプリの配信 ID があれば同じ URL のまま更新
+# 必要な設定は docs/clasp.md を参照
+name: Apps Script (clasp)
+
+on:
+  pull_request:
+    paths:
+      - '*/apps-script/**'
+      - '*/.clasp.json'
+      - '*/.claspignore'
+      - 'scripts/check-gas.mjs'
+      - 'package*.json'
+      - '.github/workflows/gas-deploy.yml'
+  push:
+    branches: ['main']
+    paths:
+      - '*/apps-script/**'
+      - '*/.clasp.json'
+      - '*/.claspignore'
+      - 'package*.json'
+      - '.github/workflows/gas-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      project:
+        description: '反映するプロジェクト（all で全部）'
+        type: choice
+        options: [all, calendar-sync, gmail-quire-sync]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gas-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  push:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: calendar-sync
+            deployment_var: GAS_DEPLOYMENT_ID_CALENDAR_SYNC
+          - project: gmail-quire-sync
+            deployment_var: GAS_DEPLOYMENT_ID_GMAIL_QUIRE_SYNC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 反映が必要か判定
+        id: target
+        env:
+          PROJECT: ${{ matrix.project }}
+          EVENT: ${{ github.event_name }}
+          INPUT: ${{ inputs.project }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          run=false
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT" = "all" ] || [ "$INPUT" = "$PROJECT" ]; then run=true; fi
+          elif [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            run=true
+          elif ! git diff --quiet "$BEFORE" HEAD -- "$PROJECT/apps-script" "$PROJECT/.clasp.json" "$PROJECT/.claspignore" package.json package-lock.json .github/workflows/gas-deploy.yml; then
+            run=true
+          fi
+          if [ "$run" = "true" ] && [ -z "$(jq -r '.scriptId // empty' "$PROJECT/.clasp.json")" ]; then
+            echo "::warning::$PROJECT/.clasp.json の scriptId が空なので反映しません"
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.target.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.target.outputs.run == 'true'
+        run: npm ci
+
+      - name: clasp の認証情報を置く
+        if: steps.target.outputs.run == 'true'
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then echo "::error::Secrets に CLASPRC_JSON がありません"; exit 1; fi
+          umask 077
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+
+      - name: clasp push
+        if: steps.target.outputs.run == 'true'
+        run: npx clasp -P "${{ matrix.project }}" -I "${{ matrix.project }}/.claspignore" push -f
+
+      - name: Web アプリの配信を更新（同じ URL のまま）
+        if: steps.target.outputs.run == 'true' && vars[matrix.deployment_var] != ''
+        env:
+          DEPLOYMENT_ID: ${{ vars[matrix.deployment_var] }}
+        run: |
+          npx clasp -P "${{ matrix.project }}" deploy -i "$DEPLOYMENT_ID" -d "GitHub ${GITHUB_SHA::7}"
+
+      - name: 認証情報を消す
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
