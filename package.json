@@ -1,0 +1,25 @@
+{
+  "name": "gemini-genalated-gas",
+  "private": true,
+  "description": "Apps Script プロジェクトを clasp で管理する",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node scripts/check-gas.mjs",
+    "login": "clasp login",
+    "calendar:status": "clasp -P calendar-sync -I calendar-sync/.claspignore status",
+    "calendar:pull": "clasp -P calendar-sync -I calendar-sync/.claspignore pull",
+    "calendar:push": "npm run check && clasp -P calendar-sync -I calendar-sync/.claspignore push -f",
+    "calendar:open": "clasp -P calendar-sync -I calendar-sync/.claspignore open-script",
+    "calendar:logs": "clasp -P calendar-sync -I calendar-sync/.claspignore logs",
+    "quire:status": "clasp -P gmail-quire-sync -I gmail-quire-sync/.claspignore status",
+    "quire:pull": "clasp -P gmail-quire-sync -I gmail-quire-sync/.claspignore pull",
+    "quire:push": "npm run check && clasp -P gmail-quire-sync -I gmail-quire-sync/.claspignore push -f",
+    "quire:open": "clasp -P gmail-quire-sync -I gmail-quire-sync/.claspignore open-script",
+    "quire:logs": "clasp -P gmail-quire-sync -I gmail-quire-sync/.claspignore logs"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.4.1"
+  }
+}

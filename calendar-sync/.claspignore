@@ -1,0 +1,4 @@
+# apps-script/ の中で、GAS に送るのはコードとマニフェストだけ
+**/**
+!*.gs
+!appsscript.json

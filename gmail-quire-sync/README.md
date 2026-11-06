@@ -44,6 +44,7 @@ Google Cloud の設定は不要です。チャットへの送信は Google Chat 
 
 - `apps-script/` … Apps Script のコード（Webhook 送信、Web ページ、Quire API、トリガー処理）
 - `docs/setup.md` … 設定手順（Webhook・Web アプリ・Quire API）
+- コードの反映は clasp で自動化（リポジトリ直下の `docs/clasp.md`）
 - `docs/claude-routine.md` … Claude の定期実行タスクに渡す指示文
 
 ## メール以外からの候補（共通スキル）
