@@ -69,6 +69,7 @@ function handleIntake_(e) {
     const existing = existingIds_(log);
     const settings = readSettings_(ss);
     const projects = readProjects_(ss);
+    const history = readHistory_(log);
 
     const sender = clip_(data.sender || data.from || '', 200);
     // チャットには件名が無いので、スペース名と本文の冒頭で代わりにする
@@ -85,7 +86,7 @@ function handleIntake_(e) {
     tasks.forEach(function (t, i) {
       const id = tasks.length === 1 ? baseId : baseId + '-' + (i + 1);
       if (existing[id]) return; // 同じメールを二度登録しない
-      const route = route_(sender, t, projects, settings);
+      const route = route_(sender, t, projects, settings, isChat ? null : { history: history, subject: subject });
       const row = new Array(INTAKE.COLS).fill('');
       row[0] = text_(receivedAt);                                   // A 受信日時
       row[1] = id;                                                  // B ID
@@ -107,7 +108,7 @@ function handleIntake_(e) {
       // W〜Y: セクションと依存関係。Gemini が選んだ登録先と実際の登録先が同じときだけ使う
       // （セクションや #番号 はプロジェクトごとのため）。候補どうしの依存（候補:ID）はいつでも残す
       const same = route.project === String(t.project || '').trim();
-      row[22] = same ? text_(clip_(t.section || '', 200)) : '';     // W セクション
+      row[22] = same ? text_(clip_(t.section || '', 200)) : text_(clip_(route.section || '', 200)); // W セクション
       row[23] = refs_(t.predecessors, same);                        // X 先行タスク
       row[24] = refs_(t.successors, same);                          // Y 後続タスク
       if (isChat) {
@@ -239,9 +240,10 @@ function readProjects_(ss) {
  * 登録先を決める。順番は Claude の判定と同じ:
  *  1. 送信者のアドレスかドメインが振り分けルールの「送信元」に一致 → ルール
  *  2. Gemini が選んだプロジェクトが実在し、確信度が下限以上 → AI
- *  3. それ以外 → General（判定理由に候補を残す）
+ *  3. Gemini が登録先を返さなかったメール → 登録ログの過去の判断（同じやり取り → 同じ送信者）
+ *  4. それ以外 → General（判定理由に候補を残す）
  */
-function route_(sender, t, projects, settings) {
+function route_(sender, t, projects, settings, past) {
   const m = String(sender).match(/<([^>]+)>/);
   const address = (m ? m[1] : String(sender)).trim().toLowerCase();
   const domain = address.split('@')[1] || '';
@@ -272,11 +274,77 @@ function route_(sender, t, projects, settings) {
   if (hit && conf >= settings.threshold) {
     return { project: hit.name, method: 'AI', confidence: conf, reason: reason, newProject: '' };
   }
+  // 保険: Gemini がスプレッドシートを読めず登録先を空で返したときなど、登録済みの過去の判断を使う
+  if (!wanted && past) {
+    const prev = fromHistory_(past.history, address, past.subject, projects);
+    if (prev) return prev;
+  }
   return {
     project: settings.general, method: 'General', confidence: conf,
     reason: (wanted ? '候補: ' + wanted + '（' + reason + '）' : reason),
     newProject: hit || !wanted ? '' : text_(clip_(wanted, 60)),
   };
+}
+
+// ---------- 過去の判断（保険） ----------
+
+/** 登録ログの「登録済」の行を、新しい順に読む。人が直した登録先（M列）を優先する。 */
+function readHistory_(log) {
+  const last = log.getLastRow();
+  if (last < 2) return [];
+  return log.getRange(2, 1, last - 1, 23).getValues()
+    .filter(function (r) { return r[10] === '登録済'; })
+    .map(function (r) {
+      const m = String(r[2] || '').match(/<([^>]+)>/);
+      return {
+        address: (m ? m[1] : String(r[2] || '')).trim().toLowerCase().replace(/^mailto:/, ''),
+        subjectKey: subjectKey_(r[3]),
+        project: String(r[12] || r[6] || '').trim(),
+        section: String(r[22] || '').trim(),
+      };
+    })
+    .filter(function (h) { return h.project; })
+    .reverse();
+}
+
+/** 件名から Re: / Fwd: などを外して比べられる形にする */
+function subjectKey_(s) {
+  let k = String(s || '').trim();
+  let prev;
+  do {
+    prev = k;
+    k = k.replace(/^\s*((re|fw|fwd|aw)\s*(\[\d+\])?\s*[:：]|返信\s*[:：]|転送\s*[:：])\s*/i, '');
+  } while (k !== prev);
+  return k.replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** 通知用のアドレス（noreply など）は、送信者が同じでも案件が同じとは限らないので使わない */
+function genericSender_(address) {
+  return /(^|[._-])(no-?reply|do-?not-?reply|notifications?|info|news|mailer-daemon)([._-]|@)/i.test(address);
+}
+
+/**
+ * 同じやり取り（件名が同じ）→ 同じ送信者 の順に、直近で登録した先を返す。
+ * 振り分けルールで無効になったプロジェクトは使わない。
+ */
+function fromHistory_(history, address, subject, projects) {
+  const active = function (h) { return projects.some(function (p) { return p.name === h.project; }); };
+  const key = subjectKey_(subject);
+  if (key.length >= 6) {
+    const same = history.filter(function (h) { return h.subjectKey === key && active(h); })[0];
+    if (same) {
+      return { project: same.project, section: same.section, method: '過去の判断', confidence: 0.8,
+        reason: '同じやり取りのメールを ' + same.project + ' に登録済み（Gemini が登録先を返さなかったため、登録ログから補完）', newProject: '' };
+    }
+  }
+  if (address && !genericSender_(address)) {
+    const bySender = history.filter(function (h) { return h.address === address && active(h); })[0];
+    if (bySender) {
+      return { project: bySender.project, section: '', method: '過去の判断', confidence: 0.7,
+        reason: '同じ送信者のメールを ' + bySender.project + ' に登録済み（Gemini が登録先を返さなかったため、登録ログから補完）', newProject: '' };
+    }
+  }
+  return null;
 }
 
 // ---------- 小物 ----------
